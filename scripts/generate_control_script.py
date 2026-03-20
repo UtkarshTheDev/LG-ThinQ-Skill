@@ -12,7 +12,8 @@ def sanitize(name):
 
 def get_defaults():
     try:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(script_dir) # Go up one level from scripts/
         defaults_path = os.path.join(
             base_dir, "references", "public_api_constants.json"
         )
@@ -29,10 +30,23 @@ from dotenv import load_dotenv
 
 # Security Note: This script uses load_dotenv(override=False).
 # Your LG_PAT should be managed in a secure central environment.
-load_dotenv(override=False)
+# Local .env in the skill directory is only for LG_DEVICE_ID.
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, ".env")
+if os.path.exists(env_path):
+    load_dotenv(env_path, override=False)
 
 # Configuration from .env with fallbacks
-BASE_URL = os.getenv("LG_API_URL") or "https://api-kic.lgthinq.com"
+# API Server Priority: env var > .api_server_cache > default
+API_SERVER_CACHE = os.path.join(script_dir, ".api_server_cache")
+if os.getenv("LG_API_SERVER"):
+    BASE_URL = os.getenv("LG_API_SERVER")
+elif os.path.exists(API_SERVER_CACHE):
+    with open(API_SERVER_CACHE, "r") as f:
+        BASE_URL = f.read().strip()
+else:
+    BASE_URL = "https://api-kic.lgthinq.com"
+
 PAT = os.getenv("LG_PAT")
 DEVICE_ID = os.getenv("LG_DEVICE_ID")
 
@@ -194,7 +208,7 @@ def generate_script(profile_json):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print("Usage: python3 generate_control_script.py profile.json")
         sys.exit(1)
 
