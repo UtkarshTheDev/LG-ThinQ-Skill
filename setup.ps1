@@ -32,8 +32,8 @@ function Install-Deps {
 function Check-Env {
     Write-Info "Checking environment configuration..."
     
-    $pipExe = Join-Path $VenvDir "Scripts\python"
-    $ConfigOutput = & $pipExe "$ScriptDir\lg_api_tool.py" check-config 2>$null
+    $pythonExe = Join-Path $VenvDir "Scripts\python"
+    $ConfigOutput = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" check-config 2>$null
     
     Write-Host $ConfigOutput
     
@@ -53,15 +53,16 @@ function Check-Env {
 function Save-ApiRoute {
     Write-Info "Saving API route..."
     
-    $pipExe = Join-Path $VenvDir "Scripts\python"
-    $RouteOutput = & $pipExe "$ScriptDir\lg_api_tool.py" save-route 2>$null | ConvertFrom-Json
+    $pythonExe = Join-Path $VenvDir "Scripts\python"
+    $RouteRaw = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" save-route 2>$null
+    $RouteOutput = $RouteRaw | ConvertFrom-Json
     
     if ($RouteOutput.success) {
         $script:ApiServer = $RouteOutput.apiServer
         Write-Info "API route saved: $ApiServer"
     } else {
         Write-Err "Failed to save API route"
-        Write-Host $RouteOutput
+        Write-Host $RouteRaw
         exit 1
     }
 }
@@ -69,17 +70,13 @@ function Save-ApiRoute {
 function Fetch-Profiles {
     Write-Info "Fetching device list..."
     
-    $pipExe = Join-Path $VenvDir "Scripts\python"
-    $DevicesOutput = & $pipExe "$ScriptDir\lg_api_tool.py" list-devices 2>$null | ConvertFrom-Json
+    $pythonExe = Join-Path $VenvDir "Scripts\python"
+    $DevicesRaw = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" list-devices 2>$null
+    $DevicesOutput = $DevicesRaw | ConvertFrom-Json
     
-    if (-not $DevicesOutput.success) {
-        Write-Err "Failed to fetch devices"
-        Write-Host $DevicesOutput
-        exit 1
-    }
-    
-    $DeviceList = $DevicesOutput.response.deviceList
-    if ($DeviceList.Count -eq 0) {
+    # Check for success in response field or success flag
+    $DeviceList = $DevicesOutput.response
+    if ($null -eq $DeviceList -or $DeviceList.Count -eq 0) {
         Write-Warn "No devices found"
         return
     }
@@ -95,22 +92,21 @@ function Fetch-Profiles {
     
     foreach ($Device in $DeviceList) {
         $DeviceId = $Device.deviceId
+        $Name = $Device.deviceInfo.alias
+        if (-not $Name) { $Name = "Unknown" }
+        $Type = $Device.deviceInfo.modelName
+        if (-not $Type) { $Type = "Unknown" }
+        
         $ProfileFile = Join-Path $ProfilesDir "device_$DeviceId.json"
         
-        Write-Info "Fetching profile for: $DeviceId"
-        $ProfileOutput = & $pipExe "$ScriptDir\lg_api_tool.py" get-profile $DeviceId 2>$null | ConvertFrom-Json
+        Write-Info "Fetching profile for: $Name ($DeviceId)"
+        $ProfileRaw = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" get-profile $DeviceId 2>$null
+        $ProfileOutput = $ProfileRaw | ConvertFrom-Json
         
-        if ($ProfileOutput.success) {
-            $ProfileOutput | ConvertTo-Json -Depth 10 | Set-Content $ProfileFile
+        # Verify by checking for the 'property' key in the response
+        if ($null -ne $ProfileOutput.response.property) {
+            $ProfileRaw | Set-Content $ProfileFile
             Write-Info "  Saved to: $ProfileFile"
-            
-            # Extract device info
-            $Props = $ProfileOutput.response.property
-            $Name = $Props.basic.alias.thirdParty, $Props.basic.alias.device | Where-Object { $_ } | Select-Object -First 1
-            if (-not $Name) { $Name = "Unknown" }
-            
-            $Type = $Props.basic.modelName
-            if (-not $Type) { $Type = "Unknown" }
             
             $DeviceInfo += @{
                 id = $DeviceId
@@ -119,7 +115,7 @@ function Fetch-Profiles {
                 profilePath = $ProfileFile
             }
         } else {
-            Write-Warn "  Failed to fetch profile for: $DeviceId"
+            Write-Warn "  Failed to fetch profile for: $Name ($DeviceId)"
         }
     }
     
