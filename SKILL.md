@@ -1,6 +1,6 @@
 ---
 name: lg-thinq-universal
-description: Universal LG ThinQ device setup and control. Discovers LG ThinQ appliances and generates secure device skills. Use when: (1) Setting up LG ThinQ integration, (2) Controlling LG AC/refrigerator/devices, (3) Creating device-specific skills.
+description: Universal LG ThinQ device manager. Discovers appliances (AC, Refrigerator, Washer, etc.) and generates secure, device-specific OpenClaw skills. Use when the user wants to: (1) Integrate LG ThinQ devices, (2) Know how to get an LG PAT token, (3) Discover new LG appliances, (4) Create specialized control skills for their home automation.
 version: 0.5.0
 requires:
   env:
@@ -8,77 +8,84 @@ requires:
     - LG_COUNTRY
 ---
 
-# LG ThinQ Universal
+# LG ThinQ Universal Manager
 
-## Goal
+## 🎯 Goal
+Provide a secure, automated gateway for LG ThinQ device integration. This skill acts as a **discovery engine** and **skill generator**, allowing users to control their appliances via OpenClaw without duplicating sensitive credentials across multiple files.
 
-Provide secure, automated integration for LG ThinQ devices without credential exposure or secret duplication. One-time setup discovers all devices; each device gets its own specialized skill.
+## 🔑 Obtaining Credentials
+If the user asks how to get their tokens, provide these instructions:
 
-## Required Credentials
+1.  **Visit the Portal**: [https://connect-pat.lgthinq.com](https://connect-pat.lgthinq.com)
+2.  **Log In**: Use your official LG ThinQ account.
+3.  **Create Token**: Click "ADD NEW TOKEN", give it a name (e.g., "OpenClaw"), and select the required features.
+4.  **Copy PAT**: Copy the generated Personal Access Token (PAT) immediately.
+5.  **Identify Country**: Use your 2-letter ISO country code (e.g., `US`, `IN`, `GB`).
 
-| Variable | Description |
-|----------|-------------|
-| `LG_PAT` | Personal Access Token from LG ThinQ app (sensitive) |
-| `LG_COUNTRY` | 2-letter ISO code (IN, US, GB, etc.) |
+## 🛠️ Prerequisites
+The agent **MUST** ensure the following are set before proceeding:
+1.  **`LG_PAT`**: Stored in shell environment or `.env`.
+2.  **`LG_COUNTRY`**: Stored in shell environment or `.env`.
 
-**Security**: Shell environment variables are preferred. A `.env` file in the project root is also supported. API server URL is cached in `.api_server_cache`.
+## 🔄 Agent Workflow (Mandatory)
 
-## Quick Start
+Follow these steps in order when a user requests setup:
 
+### Step 1: Verify Configuration
+Check if `LG_PAT` and `LG_COUNTRY` are present. Use the tool to verify:
 ```bash
-./setup.sh    # Linux/macOS
-.\setup.ps1   # Windows
+python scripts/lg_api_tool.py check-config
 ```
 
-Setup script: creates venv, installs dependencies, validates config, discovers API server, fetches all device profiles.
-
-## Security Protocol (Mandatory)
-
-The agent **MUST** follow these hard mandates:
-
-1. **Ask First**: Use `ask_user` before every network call, file write, or memory entry
-2. **Zero-Leak**: Never ask user to paste `LG_PAT` into chat
-3. **Shell Env Preferred**: Set credentials in shell env. `.env` in project root supported but shell takes precedence
-4. **Minimal Credentials**: Only `LG_DEVICE_ID` in skill's `.env`. Never duplicate `LG_PAT` or `LG_COUNTRY`
-
-## After Setup
-
-1. **Select Device**: From setup output, choose device(s) to integrate
-2. **Generate Control Script**: Create device-specific control script
-3. **Create Skill**: Build skill for the device
-4. **Verify**: Test the skill works
-5. **Memory**: Save trigger phrase to memory (with consent)
-
-See `references/skill-creation.md` for complete workflow.
-
-## API Tool Commands
-
+### Step 2: Run Automated Discovery
+Execute the setup script to prepare the environment and fetch profiles:
 ```bash
-python scripts/lg_api_tool.py check-config              # Validate setup
-python scripts/lg_api_tool.py list-devices             # List all devices
-python scripts/lg_api_tool.py get-profile <id>         # Get device capabilities
-python scripts/lg_api_tool.py get-state <id>            # Current state
-python scripts/lg_api_tool.py control <id> <cat> <prop> <value>  # Control
-python scripts/lg_api_tool.py --help                    # Full help
+./setup.sh
 ```
+*Note: If on Windows, use `.\setup.ps1`.*
 
-## Generated Control Script
+### Step 3: Parse and Present Devices
+Review the output from `setup.sh`. Present the list of discovered devices (`name`, `type`, `id`) to the user and ask which ones to integrate.
 
-```bash
-python lg_control.py --help    # Show all commands
-python lg_control.py status    # Current state
-python lg_control.py on       # Power on
-python lg_control.py off      # Power off
-python lg_control.py temp 24  # Set temperature
-```
+### Step 4: Generate Device-Specific Skills
+For each selected device, follow `references/skill-creation.md`:
+1.  **Generate Script**: Use `scripts/generate_control_script.py` with the fetched profile.
+2.  **Create Skill Directory**: Target `~/.openclaw/workspaces/skills/lg-{type}-{location}`.
+3.  **Deploy Files**: Move `lg_control.py`, copy `scripts/lg_api_tool.py`, and create a local `.env` with **ONLY** the `LG_DEVICE_ID`.
+4.  **Create SKILL.md**: Use `references/skill-generation-guide.md` to build the device skill.
 
-## References
+## ⌨️ Universal Management Commands
+
+Use these commands for maintenance and discovery:
+
+| Command | Description | Use Case |
+|---------|-------------|----------|
+| `python scripts/lg_api_tool.py list-devices` | List all linked appliances | Verify connectivity |
+| `python scripts/lg_api_tool.py save-route` | Discover regional server | Fix "Route not found" errors |
+| `python scripts/lg_api_tool.py get-state <id>` | Get raw device state | Deep debugging |
+| `python scripts/lg_api_tool.py --help` | Show all API tool options | Explore advanced features |
+
+## 🛡️ Security Mandates
+1.  **Zero-Leak Policy**: NEVER ask the user to paste their `LG_PAT` into the chat.
+2.  **Credential Isolation**: NEVER copy `LG_PAT` into generated device skill directories.
+3.  **Confirmation Protocol**: Use `ask_user` before every network call, file write, or memory entry.
+4.  **Local-Only**: All API communication must remain local.
+
+## 📚 References
 
 | Document | Purpose |
 |----------|---------|
-| `references/manual-setup.md` | Manual setup without setup.sh |
-| `references/api-reference.md` | API headers, endpoints, x-conditional-control |
-| `references/skill-creation.md` | Complete post-setup workflow |
-| `references/skill-generation-guide.md` | How to structure device SKILL.md |
-| `references/device-example.md` | Complete example of generated skill |
-| `references/public_api_constants.json` | API constants (not secrets) |
+| `references/skill-creation.md` | Detailed post-setup workflow for creating device skills |
+| `references/skill-generation-guide.md` | Instructions for building device-specific SKILL.md files |
+| `references/manual-setup.md` | Manual installation steps (without setup scripts) |
+| `references/api-reference.md` | Technical details on API headers and control logic |
+| `references/device-example.md` | Complete example of a generated device skill |
+| `references/public_api_constants.json` | Public API keys and constants used by the scripts |
+
+## 🚨 Error Handling
+
+| Symptom | Resolution |
+|---------|------------|
+| `401 Unauthorized` | Token expired. Guide user to [https://connect-pat.lgthinq.com](https://connect-pat.lgthinq.com). |
+| `No devices found` | Verify device is added to the official **LG ThinQ App** on mobile first. |
+| `Permission denied` | Run `chmod +x setup.sh`. |
