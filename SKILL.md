@@ -74,7 +74,9 @@ Use these commands for maintenance and discovery:
 ## 🛡️ Security Mandates
 1.  **Zero-Leak Policy**: NEVER ask the user to paste their `LG_PAT` into the chat.
 2.  **Credential Isolation**: NEVER copy `LG_PAT` into generated device skill directories.
-3.  **Confirmation Protocol**: Use `ask_user` before every network call, file write, or memory entry.
+3.  **Confirmation Protocol**: Before every network call, file write, or device control command, the agent **MUST**:
+    - Explain exactly what action it is about to perform (e.g., "I am going to save the API route to your local cache").
+    - Ask for user permission using `ask_user`.
 4.  **Local-Only**: All API communication must remain local.
 
 ## 📚 References
