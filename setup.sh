@@ -48,7 +48,7 @@ check_env() {
     
     source "$VENV_DIR/bin/activate"
     
-    CONFIG_OUTPUT=$(python3 "$SCRIPT_DIR/lg_api_tool.py" check-config 2>/dev/null || echo "")
+    CONFIG_OUTPUT=$(python3 "$SCRIPT_DIR/scripts/lg_api_tool.py" check-config 2>/dev/null || echo "")
     echo "$CONFIG_OUTPUT"
     
     if echo "$CONFIG_OUTPUT" | grep -q "❌"; then
@@ -70,7 +70,7 @@ save_api_route() {
     
     source "$VENV_DIR/bin/activate"
     
-    ROUTE_OUTPUT=$(python3 "$SCRIPT_DIR/lg_api_tool.py" save-route 2>/dev/null)
+    ROUTE_OUTPUT=$(python3 "$SCRIPT_DIR/scripts/lg_api_tool.py" save-route 2>/dev/null)
     
     if echo "$ROUTE_OUTPUT" | grep -q '"success": true'; then
         API_SERVER=$(echo "$ROUTE_OUTPUT" | python3 -c "import sys, json; print(json.load(sys.stdin)['apiServer'])")
@@ -88,7 +88,7 @@ fetch_profiles() {
     
     source "$VENV_DIR/bin/activate"
     
-    DEVICES_OUTPUT=$(python3 "$SCRIPT_DIR/lg_api_tool.py" list-devices 2>/dev/null)
+    DEVICES_OUTPUT=$(python3 "$SCRIPT_DIR/scripts/lg_api_tool.py" list-devices 2>/dev/null)
     
     if echo "$DEVICES_OUTPUT" | grep -q '"success": false'; then
         log_error "Failed to fetch devices"
@@ -96,16 +96,21 @@ fetch_profiles() {
         exit 1
     fi
     
-    # Parse device IDs
-    DEVICE_IDS=$(echo "$DEVICES_OUTPUT" | python3 -c "
+    # Parse device details into a pipe-separated list: ID|NAME|TYPE
+    DEVICE_DETAILS=$(echo "$DEVICES_OUTPUT" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
-devices = data.get('response', {}).get('deviceList', [])
+devices = data.get('response', [])
+if not isinstance(devices, list): devices = []
 for d in devices:
-    print(d.get('deviceId', ''))
+    d_id = d.get('deviceId', '')
+    info = d.get('deviceInfo', {})
+    name = info.get('alias', 'Unknown')
+    type_name = info.get('modelName', 'Unknown')
+    print(f'{d_id}|{name}|{type_name}')
 " 2>/dev/null || true)
     
-    if [ -z "$DEVICE_IDS" ]; then
+    if [ -z "$DEVICE_DETAILS" ]; then
         log_warn "No devices found"
         return
     fi
@@ -117,39 +122,24 @@ for d in devices:
     
     declare -A DEVICE_INFO
     
-    for DEVICE_ID in $DEVICE_IDS; do
+    # Loop through the pipe-separated details
+    while IFS='|' read -r DEVICE_ID DEVICE_NAME DEVICE_TYPE; do
+        if [ -z "$DEVICE_ID" ]; then continue; fi
+        
         PROFILE_FILE="${PROFILES_DIR}/device_${DEVICE_ID}.json"
         
-        log_info "Fetching profile for: $DEVICE_ID"
-        PROFILE_OUTPUT=$(python3 "$SCRIPT_DIR/lg_api_tool.py" get-profile "$DEVICE_ID" 2>/dev/null)
+        log_info "Fetching profile for: $DEVICE_NAME ($DEVICE_ID)"
+        PROFILE_OUTPUT=$(python3 "$SCRIPT_DIR/scripts/lg_api_tool.py" get-profile "$DEVICE_ID" 2>/dev/null)
         
-        if echo "$PROFILE_OUTPUT" | grep -q '"success": true'; then
+        # Check if the output is valid JSON and contains profile data
+        if echo "$PROFILE_OUTPUT" | grep -q '"property"'; then
             echo "$PROFILE_OUTPUT" > "$PROFILE_FILE"
             log_info "  Saved to: $PROFILE_FILE"
-            
-            # Extract device name for summary
-            DEVICE_NAME=$(echo "$PROFILE_OUTPUT" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-props = data.get('response', {}).get('property', {})
-alias = props.get('basic', {}).get('alias', {})
-name = alias.get('thirdParty', alias.get('device', 'Unknown'))
-print(name)
-" 2>/dev/null || echo "Unknown")
-            
-            DEVICE_TYPE=$(echo "$PROFILE_OUTPUT" | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-props = data.get('response', {}).get('property', {})
-model = props.get('basic', {}).get('modelName', 'Unknown')
-print(model)
-" 2>/dev/null || echo "Unknown")
-            
             DEVICE_INFO["$DEVICE_ID"]="$DEVICE_NAME|$DEVICE_TYPE|$PROFILE_FILE"
         else
             log_warn "  Failed to fetch profile for: $DEVICE_ID"
         fi
-    done
+    done <<< "$DEVICE_DETAILS"
     
     # Output summary JSON
     echo ""
@@ -164,10 +154,13 @@ print(model)
     echo "  \"devices\": ["
     
     FIRST=true
-    for DEVICE_ID in $DEVICE_IDS; do
+    # Re-loop through details to maintain order and match with DEVICE_INFO
+    while IFS='|' read -r DEVICE_ID NAME TYPE; do
+        if [ -z "$DEVICE_ID" ]; then continue; fi
+        
         INFO="${DEVICE_INFO[$DEVICE_ID]}"
         if [ -n "$INFO" ]; then
-            IFS='|' read -r NAME TYPE PROFILE <<< "$INFO"
+            IFS='|' read -r STORED_NAME STORED_TYPE PROFILE_PATH <<< "$INFO"
             if [ "$FIRST" = true ]; then
                 FIRST=false
             else
@@ -175,12 +168,12 @@ print(model)
             fi
             echo "    {"
             echo "      \"id\": \"$DEVICE_ID\","
-            echo "      \"name\": \"$NAME\","
-            echo "      \"type\": \"$TYPE\","
-            echo "      \"profilePath\": \"$PROFILE\""
+            echo "      \"name\": \"$STORED_NAME\","
+            echo "      \"type\": \"$STORED_TYPE\","
+            echo "      \"profilePath\": \"$PROFILE_PATH\""
             echo -n "    }"
         fi
-    done
+    done <<< "$DEVICE_DETAILS"
     
     echo ""
     echo "  ]"
