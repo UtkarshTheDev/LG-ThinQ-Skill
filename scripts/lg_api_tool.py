@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 # Load .env from project root only (where skill is installed)
 # Shell environment variables take precedence via override=False
 script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = script_dir
+project_root = os.path.dirname(script_dir) # Go up one level to project root
 env_path = os.path.join(project_root, ".env")
 if os.path.exists(env_path):
     load_dotenv(env_path, override=False)
@@ -83,15 +83,16 @@ def get_base_url():
 
     if os.path.exists(API_SERVER_CACHE):
         with open(API_SERVER_CACHE, "r") as f:
-            return f.read().strip()
+            server = f.read().strip()
+            if server:
+                return server
 
     try:
         return _fetch_route_api()
     except Exception as e:
-        print(
-            json.dumps({"success": False, "error": f"Route discovery failed: {str(e)}"})
-        )
-        sys.exit(1)
+        log_debug(f"Route discovery failed: {str(e)}")
+        # Fallback to KIC if route API fails
+        return "https://api-kic.lgthinq.com"
 
 
 def save_route():
@@ -261,7 +262,7 @@ def main():
     elif cmd == "save-route":
         result = save_route()
         if result["success"]:
-            log_debug(f"Route saved to {result['saved_to']}")
+            log_debug(f"Route saved to {result['cacheFile']}")
         print(json.dumps(result))
     elif cmd == "list-devices":
         print(json.dumps(list_devices()))
