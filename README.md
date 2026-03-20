@@ -49,7 +49,9 @@ echo "LG_COUNTRY=your_country_code" >> .env
 
 Paste this simple prompt into your OpenClaw chat to begin the automated setup of your devices:
 
-> **I have installed the `lg-thinq-universal` skill and added the tokens. Please follow the `SKILL.md` in the skill directory to run `./setup.sh` and help me set up my specific LG devices.**
+```text
+I have installed the lg-thinq-universal skill and added the tokens. Please follow the SKILL.md in the skill directory to run ./setup.sh and help me set up my specific LG devices.
+```
 
 ---
 
