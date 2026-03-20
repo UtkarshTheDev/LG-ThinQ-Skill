@@ -6,6 +6,12 @@ requires:
   env:
     - LG_PAT
     - LG_COUNTRY
+  vars:
+    - LG_DEVICE_ID
+  install: ./setup.sh
+metadata:
+  openclaw:
+    emoji: "🔐"
 ---
 
 # LG ThinQ Universal Manager
@@ -37,11 +43,11 @@ Check if `LG_PAT` and `LG_COUNTRY` are present. Use the tool to verify:
 python scripts/lg_api_tool.py check-config
 ```
 
-### Step 2: Run Automated Discovery
-Execute the setup script to prepare the environment and fetch profiles:
-```bash
-./setup.sh
-```
+### Step 2: Audit and Run Setup
+The `./setup.sh` script is used to create a Python virtual environment and fetch device profiles.
+**Mandatory Audit**: Before execution, the agent **MUST** ask the user (using `ask_user`) if they would like to review the script content for security purposes.
+- If the user says **Yes**: Display the script using `cat ./setup.sh`.
+- After review (or if the user says **No**): Proceed to execution: `./setup.sh`.
 *Note: If on Windows, use `.\setup.ps1`.*
 
 ### Step 3: Parse and Present Devices
