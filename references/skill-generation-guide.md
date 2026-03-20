@@ -63,14 +63,15 @@ Translate user intent to CLI commands:
 
 ---
 
-## 4. Decision Logic
+## 4. Decision Logic & Safety
 
-Always consider device state:
+Always consider device state and enforce confirmation:
 
 1. **Power Check**: If device is off and user wants to change settings, turn on first
 2. **Sequencing**: Wait 2 seconds between power-on and subsequent commands
 3. **Verification**: Confirm changes with `status`
-4. **Safety**: Never exceed min/max values from profile
+4. **Safety Confirmation**: Every control command **MUST** include the `--confirm` flag (e.g., `python lg_control.py on --confirm`). The agent must explain the action and get `ask_user` consent before execution.
+5. **Range Enforcement**: Respect `min/max` from profile
 
 ---
 
@@ -98,4 +99,4 @@ Always consider device state:
 **Input**: Device profile (`profiles/device_{id}.json`)
 **Tool**: `scripts/generate_control_script.py`
 **Output**: `lg_control.py` + device `SKILL.md`
-**Location**: `~/.config/openclaw/skills/lg-{type}-{id}/`
+**Location**: `~/.openclaw/workspaces/skills/lg-{type}-{id}/`

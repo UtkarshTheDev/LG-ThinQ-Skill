@@ -98,7 +98,7 @@ If errors occur:
 Create a dedicated directory for this device's skill:
 
 ```bash
-mkdir -p ~/.config/openclaw/skills/lg-{device-type}-{short-id}
+mkdir -p ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
 ```
 
 **Naming convention:**
@@ -118,10 +118,10 @@ Copy necessary files into the skill directory:
 
 ```bash
 # Move the generated control script
-mv lg_control.py ~/.config/openclaw/skills/lg-{device-type}-{short-id}/
+mv lg_control.py ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}/
 
 # Copy the API tool for future use
-cp scripts/lg_api_tool.py ~/.config/openclaw/skills/lg-{device-type}-{short-id}/
+cp scripts/lg_api_tool.py ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}/
 ```
 
 **Note**: Keep the original `lg-api-tool.py` in the universal skill folder. Each device skill gets its own copy.
@@ -133,7 +133,7 @@ cp scripts/lg_api_tool.py ~/.config/openclaw/skills/lg-{device-type}-{short-id}/
 Create a `.env` file with only `LG_DEVICE_ID`:
 
 ```bash
-cd ~/.config/openclaw/skills/lg-{device-type}-{short-id}
+cd ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
 echo "LG_DEVICE_ID=<device_id>" > .env
 chmod 600 .env
 ```
@@ -168,7 +168,7 @@ Create `SKILL.md` following:
 Test the skill works end-to-end:
 
 ```bash
-cd ~/.config/openclaw/skills/lg-{device-type}-{short-id}
+cd ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
 python lg_control.py status
 ```
 
@@ -192,7 +192,7 @@ If approved, save to memory:
 [LG ThinQ Device Setup]
 Device: {Device Name}
 Trigger: "OpenClaw, manage my {Device Name}"
-Skill: ~/.config/openclaw/skills/lg-{device-type}-{short-id}
+Skill: ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
 ```
 
 ---
@@ -222,14 +222,14 @@ python lg_control.py --help
 python lg_control.py status
 
 # 4. Create skill directory
-mkdir -p ~/.config/openclaw/skills/lg-$DEVICE_TYPE-livingroom
+mkdir -p ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom
 
 # 5. Move files
-mv lg_control.py ~/.config/openclaw/skills/lg-$DEVICE_TYPE-livingroom/
-cp scripts/lg_api_tool.py ~/.config/openclaw/skills/lg-$DEVICE_TYPE-livingroom/
+mv lg_control.py ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom/
+cp scripts/lg_api_tool.py ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom/
 
 # 6. Create local .env
-cd ~/.config/openclaw/skills/lg-$DEVICE_TYPE-livingroom
+cd ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom
 echo "LG_DEVICE_ID=$DEVICE_ID" > .env
 chmod 600 .env
 
