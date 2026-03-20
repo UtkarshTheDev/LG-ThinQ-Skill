@@ -1,6 +1,8 @@
 # LG ThinQ Universal Skill
 
-A powerful, secure, and automated integration for LG ThinQ devices. This skill acts as a **Universal Manager**: it discovers your LG appliances (ACs, Refrigerators, Washers, etc.) and helps you generate specialized, lightweight skills for each individual device without exposing your credentials.
+**Connect and manage your LG ThinQ devices seamlessly with OpenClaw.**
+
+This skill acts as a **Universal Manager** that automates the entire integration process. It starts by discovering all LG appliances (ACs, Refrigerators, Washers, etc.) linked to your account. Then, it simplifies management by generating specialized, lightweight OpenClaw skills for each individual device. This approach ensures a secure, private connection that allows for natural language control without ever exposing your sensitive credentials in the device-specific skills.
 
 ## 🚀 Quick Start
 
@@ -90,4 +92,10 @@ After the setup is complete, you will have specific skills like `lg-ac-livingroo
 *   **Validation**: Every command uses optimistic locking (`x-conditional-control`) to ensure your device state is always what you expect.
 
 ---
-*Maintained by the LG ThinQ Universal community.*
+
+## 🤝 Contributing
+
+Contributions are welcome! If you have ideas for improvements, new features, or additional device profiles, feel free to open an issue or submit a pull request.
+
+---
+*Made with ❤️ by Utkarsh Tiwari | Welcome contributions!*
