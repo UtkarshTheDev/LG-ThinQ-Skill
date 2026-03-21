@@ -28,23 +28,23 @@ command_exists() {
 
 # Install dependencies
 install_deps() {
-    log_info "Setting up Python virtual environment..."
+    log_info "Preparing Python environment..."
     
     if [ -d "$VENV_DIR" ]; then
-        log_warn "Virtual environment exists, skipping creation"
+        log_warn "Virtual environment already exists at $VENV_DIR. Skipping creation."
     else
         python3 -m venv "$VENV_DIR"
-        log_info "Virtual environment created at $VENV_DIR"
+        log_info "Created new virtual environment."
     fi
     
-    log_info "Installing dependencies..."
+    log_info "Synchronizing dependencies..."
     "$VENV_DIR/bin/pip" install -q -r "$REQUIREMENTS_FILE"
-    log_info "Dependencies installed"
+    log_info "Dependencies are up to date."
 }
 
 # Check environment variables
 check_env() {
-    log_info "Checking environment configuration..."
+    log_info "Validating configuration..."
     
     source "$VENV_DIR/bin/activate"
     
@@ -52,33 +52,41 @@ check_env() {
     echo "$CONFIG_OUTPUT"
     
     if echo "$CONFIG_OUTPUT" | grep -q "❌"; then
-        log_error "Environment configuration incomplete"
-        log_info "Please set LG_PAT and LG_COUNTRY in your environment or .env file"
+        log_error "Configuration incomplete."
+        log_info "Please ensure LG_PAT and LG_COUNTRY are exported in your shell or set in .env."
         echo ""
-        echo "Example .env content:"
-        echo "LG_PAT=your_personal_access_token_here"
-        echo "LG_COUNTRY=IN"
+        echo "Example:"
+        echo "export LG_PAT=your_token"
+        echo "export LG_COUNTRY=IN"
         exit 1
     fi
     
-    log_info "Environment configuration OK"
+    log_info "Configuration validated successfully."
 }
 
-# Save API route
+# Resolve API route
 save_api_route() {
-    log_info "Saving API route..."
+    log_info "Resolving API route..."
     
-    source "$VENV_DIR/bin/activate"
+    CACHE_FILE="${PROJECT_ROOT}/.api_server_cache"
     
-    ROUTE_OUTPUT=$(python3 "$SCRIPT_DIR/scripts/lg_api_tool.py" save-route 2>/dev/null)
-    
-    if echo "$ROUTE_OUTPUT" | grep -q '"success": true'; then
-        API_SERVER=$(echo "$ROUTE_OUTPUT" | python3 -c "import sys, json; print(json.load(sys.stdin)['apiServer'])")
-        log_info "API route saved: $API_SERVER"
+    # Check if cache exists and is not empty
+    if [ -f "$CACHE_FILE" ] && [ -s "$CACHE_FILE" ]; then
+        API_SERVER=$(cat "$CACHE_FILE")
+        log_info "Using cached API route: $API_SERVER"
     else
-        log_error "Failed to save API route"
-        echo "$ROUTE_OUTPUT"
-        exit 1
+        log_info "No valid cache found. Discovering regional API server..."
+        source "$VENV_DIR/bin/activate"
+        ROUTE_OUTPUT=$(python3 "$SCRIPT_DIR/scripts/lg_api_tool.py" save-route 2>/dev/null)
+        
+        if echo "$ROUTE_OUTPUT" | grep -q '"success": true'; then
+            API_SERVER=$(echo "$ROUTE_OUTPUT" | python3 -c "import sys, json; print(json.load(sys.stdin)['apiServer'])")
+            log_info "API route discovered and cached: $API_SERVER"
+        else
+            log_error "Failed to resolve API route."
+            echo "$ROUTE_OUTPUT"
+            exit 1
+        fi
     fi
 }
 
@@ -144,14 +152,18 @@ for d in devices:
     # Output summary JSON
     echo ""
     echo "========================================"
-    log_info "Setup Complete - Devices Ready"
+    log_info "Setup Complete - Discovered Appliances"
     echo "========================================"
+    echo ""
+    echo "The following device profiles have been saved to $PROFILES_DIR:"
     echo ""
     echo "{"
     echo "  \"success\": true,"
     echo "  \"apiServer\": \"$API_SERVER\","
-    echo "  \"profilesDir\": \"$PROFILES_DIR\","
     echo "  \"devices\": ["
+    
+    # Create master device database
+    echo "[" > "${PROFILES_DIR}/devices.json"
     
     FIRST=true
     # Re-loop through details to maintain order and match with DEVICE_INFO
@@ -161,28 +173,48 @@ for d in devices:
         INFO="${DEVICE_INFO[$DEVICE_ID]}"
         if [ -n "$INFO" ]; then
             IFS='|' read -r STORED_NAME STORED_TYPE PROFILE_PATH <<< "$INFO"
+            
+            # Add comma for valid JSON array
             if [ "$FIRST" = true ]; then
                 FIRST=false
             else
+                echo "    ," >> "${PROFILES_DIR}/devices.json"
                 echo "    ,"
             fi
+            
+            # Write to master DB
+            echo "    {" >> "${PROFILES_DIR}/devices.json"
+            echo "      \"id\": \"$DEVICE_ID\"," >> "${PROFILES_DIR}/devices.json"
+            echo "      \"name\": \"$STORED_NAME\"," >> "${PROFILES_DIR}/devices.json"
+            echo "      \"model\": \"$STORED_TYPE\"," >> "${PROFILES_DIR}/devices.json"
+            echo "      \"profile\": \"$PROFILE_PATH\"" >> "${PROFILES_DIR}/devices.json"
+            echo "    }" >> "${PROFILES_DIR}/devices.json"
+            
+            # Write to console output
             echo "    {"
-            echo "      \"id\": \"$DEVICE_ID\","
             echo "      \"name\": \"$STORED_NAME\","
-            echo "      \"type\": \"$STORED_TYPE\","
-            echo "      \"profilePath\": \"$PROFILE_PATH\""
+            echo "      \"model\": \"$STORED_TYPE\","
+            echo "      \"id\": \"$DEVICE_ID\","
+            echo "      \"profile\": \"$PROFILE_PATH\""
             echo -n "    }"
         fi
     done <<< "$DEVICE_DETAILS"
+    
+    echo "]" >> "${PROFILES_DIR}/devices.json"
     
     echo ""
     echo "  ]"
     echo "}"
     echo ""
-    echo "Next steps for OpenClaw:"
-    echo "1. Select a device from the list above"
-    echo "2. Generate control script: python3 scripts/generate_control_script.py <profile_path> > lg_control.py"
-    echo "3. Create skill directory and move generated files"
+    echo "========================================"
+    echo "🚀 DISCOVERY COMPLETE"
+    echo "========================================"
+    echo "1. Choose a device ID from the list above."
+    echo "2. Run the assembly script to build the workspace:"
+    echo ""
+    echo "   python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>"
+    echo ""
+    echo "Note: You can also add '--location livingroom' to customize the folder name."
 }
 
 # Main execution
