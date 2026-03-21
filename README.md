@@ -33,13 +33,14 @@ export LG_PAT="your_newly_generated_token"
 export LG_COUNTRY="IN"  # Your 2-letter ISO country code (US, GB, IN, etc.)
 ```
 
-**Option B: .env File**
-Alternatively, create a `.env` file in the skill directory:
+**Option B: .env File (Root Only)**
+Create a `.env` file **only** in the `lg-thinq-universal` directory:
 ```bash
 cd ~/.openclaw/workspaces/skills/lg-thinq-universal
 echo "LG_PAT=your_token_here" > .env
 echo "LG_COUNTRY=your_country_code" >> .env
 ```
+> ⚠️ **SECURITY WARNING**: NEVER copy this `.env` file or your `LG_PAT` into the individual device skill folders created later. Those folders must remain isolated for your safety.
 
 ---
 
@@ -50,7 +51,7 @@ echo "LG_COUNTRY=your_country_code" >> .env
 Paste this simple prompt into your OpenClaw chat to begin the automated setup of your devices:
 
 ```text
-I have installed the lg-thinq-universal skill and added the tokens. Please follow the SKILL.md in the skill directory to run ./setup.sh and help me set up my specific LG devices.
+I have installed the lg-thinq-universal skill and added the tokens. Please follow the SKILL.md to run the discovery setup and help me assemble the workspaces for my LG devices.
 ```
 
 ---
