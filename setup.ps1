@@ -15,25 +15,18 @@ function Write-Warn { Write-Host "[WARN] $args" -ForegroundColor Yellow }
 function Write-Err { Write-Host "[ERROR] $args" -ForegroundColor Red }
 
 function Install-Deps {
-    Write-Info "Setting up Python virtual environment..."
+    Write-Info "Installing dependencies globally..."
     
-    if (Test-Path $VenvDir) {
-        Write-Warn "Virtual environment exists, skipping creation"
-    } else {
-        python -m venv $VenvDir
-        Write-Info "Virtual environment created at $VenvDir"
-    }
-    
-    Write-Info "Installing dependencies..."
-    & (Join-Path $VenvDir "Scripts\pip") install -q -r $RequirementsFile
+    # On Windows, we install globally to avoid per-skill venv management complexity
+    python -m pip install --user -q -r $RequirementsFile
     Write-Info "Dependencies installed"
 }
 
 function Check-Env {
     Write-Info "Checking environment configuration..."
     
-    $pythonExe = Join-Path $VenvDir "Scripts\python"
-    $ConfigOutput = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" check-config 2>$null
+    # Use global python since we installed deps globally
+    $ConfigOutput = python "$ScriptDir\scripts\lg_api_tool.py" check-config 2>$null
     
     Write-Host $ConfigOutput
     
@@ -51,17 +44,29 @@ function Check-Env {
 }
 
 function Save-ApiRoute {
-    Write-Info "Saving API route..."
+    Write-Info "Resolving API route..."
     
-    $pythonExe = Join-Path $VenvDir "Scripts\python"
-    $RouteRaw = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" save-route 2>$null
+    $CacheFile = Join-Path $ProjectRoot ".api_server_cache"
+    
+    # Check if cache exists and is not empty
+    if (Test-Path $CacheFile) {
+        $CachedContent = Get-Content $CacheFile
+        if ($null -ne $CachedContent -and $CachedContent.Length -gt 0) {
+            $script:ApiServer = $CachedContent.Trim()
+            Write-Info "Using cached API route: $ApiServer"
+            return
+        }
+    }
+
+    Write-Info "No valid cache found. Discovering regional API server..."
+    $RouteRaw = python "$ScriptDir\scripts\lg_api_tool.py" save-route 2>$null
     $RouteOutput = $RouteRaw | ConvertFrom-Json
     
     if ($RouteOutput.success) {
         $script:ApiServer = $RouteOutput.apiServer
-        Write-Info "API route saved: $ApiServer"
+        Write-Info "API route discovered and cached: $ApiServer"
     } else {
-        Write-Err "Failed to save API route"
+        Write-Err "Failed to resolve API route."
         Write-Host $RouteRaw
         exit 1
     }
@@ -70,8 +75,7 @@ function Save-ApiRoute {
 function Fetch-Profiles {
     Write-Info "Fetching device list..."
     
-    $pythonExe = Join-Path $VenvDir "Scripts\python"
-    $DevicesRaw = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" list-devices 2>$null
+    $DevicesRaw = python "$ScriptDir\scripts\lg_api_tool.py" list-devices 2>$null
     $DevicesOutput = $DevicesRaw | ConvertFrom-Json
     
     # Check for success in response field or success flag
@@ -89,18 +93,19 @@ function Fetch-Profiles {
     }
     
     $DeviceInfo = @()
+    $DbFile = Join-Path $ProfilesDir "devices.json"
     
     foreach ($Device in $DeviceList) {
         $DeviceId = $Device.deviceId
         $Name = $Device.deviceInfo.alias
         if (-not $Name) { $Name = "Unknown" }
-        $Type = $Device.deviceInfo.modelName
-        if (-not $Type) { $Type = "Unknown" }
+        $Model = $Device.deviceInfo.modelName
+        if (-not $Model) { $Model = "Unknown" }
         
         $ProfileFile = Join-Path $ProfilesDir "device_$DeviceId.json"
         
         Write-Info "Fetching profile for: $Name ($DeviceId)"
-        $ProfileRaw = & $pythonExe "$ScriptDir\scripts\lg_api_tool.py" get-profile $DeviceId 2>$null
+        $ProfileRaw = python "$ScriptDir\scripts\lg_api_tool.py" get-profile $DeviceId 2>$null
         $ProfileOutput = $ProfileRaw | ConvertFrom-Json
         
         # Verify by checking for the 'property' key in the response
@@ -111,35 +116,44 @@ function Fetch-Profiles {
             $DeviceInfo += @{
                 id = $DeviceId
                 name = $Name
-                type = $Type
-                profilePath = $ProfileFile
+                model = $Model
+                profile = $ProfileFile
             }
         } else {
             Write-Warn "  Failed to fetch profile for: $Name ($DeviceId)"
         }
     }
     
+    # Save Master Database
+    $DeviceInfo | ConvertTo-Json -Depth 10 | Set-Content $DbFile
+    
     # Output summary JSON
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
-    Write-Info "Setup Complete - Devices Ready"
+    Write-Info "Setup Complete - Discovered Appliances"
     Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "The following device profiles have been saved to $ProfilesDir :"
     Write-Host ""
     
     $Result = @{
         success = $true
         apiServer = $script:ApiServer
-        profilesDir = $ProfilesDir
         devices = $DeviceInfo
     }
     
     $Result | ConvertTo-Json -Depth 10
     
     Write-Host ""
-    Write-Host "Next steps for OpenClaw:"
-    Write-Host "1. Select a device from the list above"
-    Write-Host "2. Generate control script: python scripts/generate_control_script.py <profile_path> > lg_control.py"
-    Write-Host "3. Create skill directory and move generated files"
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "🚀 DISCOVERY COMPLETE" -ForegroundColor Green
+    Write-Host "========================================" -ForegroundColor Cyan
+    Write-Host "1. Choose a device ID from the list above."
+    Write-Host "2. Run the assembly script to build the workspace:"
+    Write-Host ""
+    Write-Host "   python scripts\assemble_device_workspace.py --id <DEVICE_ID>"
+    Write-Host ""
+    Write-Host "Note: You can also add '--location livingroom' to customize the folder name."
 }
 
 # Main execution
