@@ -233,7 +233,7 @@ main() {
         echo "========================================"
         echo "This script will perform the following actions:"
         echo "1. [ENV]  Create virtual environment at ./venv"
-        echo "2. [ENV]  Install dependencies from requirements.txt"
+        echo "2. [NET]  Download & Install dependencies from PyPI (requests, python-dotenv)"
         echo "3. [NET]  Discover regional API server (uses LG_PAT/LG_COUNTRY)"
         echo "4. [NET]  Fetch list of devices and technical profiles"
         echo "5. [FILE] Save profiles to ./profiles/ and update database"

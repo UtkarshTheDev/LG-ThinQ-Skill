@@ -12,7 +12,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 PROFILES_DIR = os.path.join(PROJECT_ROOT, "profiles")
 DB_FILE = os.path.join(PROFILES_DIR, "devices.json")
-SKILLS_ROOT = os.path.expanduser("~/.openclaw/workspaces/skills")
+SKILLS_ROOT = os.path.expanduser("~/.openclaw/workspace/skills")
 
 # Helpers
 # ------------------------------------------------------------------------------
@@ -92,8 +92,9 @@ def main():
         print(f"2. [FILE] Write engine:    {skill_path}/lg_control.py")
         print(f"3. [FILE] Write config:    {skill_path}/.env (Device ID isolation)")
         print(f"4. [FILE] Copy tools:      lg_api_tool.py, requirements.txt")
-        print(f"5. [ENV]  Setup venv:      Create venv and install dependencies")
-        print(f"6. [NET]  Verification:    Call LG API to verify device status")
+        print(f"5. [FILE] Copy references: public_api_constants.json, profile.json")
+        print(f"6. [ENV]  Setup venv:      Create venv and install dependencies")
+        print(f"7. [NET]  Verification:    Call LG API to verify device status")
         print("\n[ACTION REQUIRED]")
         print("Please review these actions. If you approve, run this command again with the '--confirm' flag.")
         print("!"*60 + "\n")
@@ -110,13 +111,14 @@ def main():
             sys.exit(1)
     
     os.makedirs(skill_path)
-    log("Created skill directory.")
+    # Create references subdir for constants
+    os.makedirs(os.path.join(skill_path, "references"))
+    log("Created skill directory structure.")
 
     # 4. Generate Control Script
     log("Generating engine (lg_control.py)...")
     
     # We call the generator script as a subprocess to keep environments clean
-    # Pass ID in env so the generator knows context
     gen_env = os.environ.copy()
     gen_env["LG_DEVICE_ID"] = args.id
     
@@ -138,10 +140,19 @@ def main():
     log("Engine generated and saved.")
 
     # 5. Assemble Dependencies
-    log("Assembling dependencies...")
+    log("Assembling dependencies and references...")
     
     # Copy API tool
     shutil.copy(os.path.join(SCRIPT_DIR, "lg_api_tool.py"), skill_path)
+    
+    # Copy Constants (CRITICAL: Required for API keys when moved)
+    shutil.copy(
+        os.path.join(PROJECT_ROOT, "references", "public_api_constants.json"), 
+        os.path.join(skill_path, "references")
+    )
+
+    # Copy Profile (For documentation context)
+    shutil.copy(profile_path, os.path.join(skill_path, "profile.json"))
     
     # Copy Requirements (if they exist)
     req_src = os.path.join(PROJECT_ROOT, "requirements.txt")
