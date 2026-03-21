@@ -88,7 +88,14 @@ def get_base_url():
                 return server
 
     try:
-        return _fetch_route_api()
+        server = _fetch_route_api()
+        # AUTO-CACHE: Save discovered route for next time
+        try:
+            with open(API_SERVER_CACHE, "w") as f:
+                f.write(server)
+        except Exception:
+            pass # Ignore write errors during auto-cache
+        return server
     except Exception as e:
         log_debug(f"Route discovery failed: {str(e)}")
         # Fallback to KIC if route API fails
