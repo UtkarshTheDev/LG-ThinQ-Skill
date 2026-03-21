@@ -147,16 +147,16 @@ python lg_control.py status     # Get current state
 ### 11. Create Skill Directory
 
 ```bash
-mkdir -p ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
+mkdir -p ~/.openclaw/workspace/skills/lg-{device-type}-{short-id}
 ```
 
-Example: `~/.openclaw/workspaces/skills/lg-ac-livingroom/`
+Example: `~/.openclaw/workspace/skills/lg-ac-livingroom/`
 
 ### 12. Move Files to Skill Directory
 
 ```bash
-mv lg_control.py ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}/
-cp scripts/lg_api_tool.py ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}/
+mv lg_control.py ~/.openclaw/workspace/skills/lg-{device-type}-{short-id}/
+cp scripts/lg_api_tool.py ~/.openclaw/workspace/skills/lg-{device-type}-{short-id}/
 ```
 
 ### 13. Create Local .env
@@ -164,7 +164,7 @@ cp scripts/lg_api_tool.py ~/.openclaw/workspaces/skills/lg-{device-type}-{short-
 In the skill directory, create `.env` with only `LG_DEVICE_ID`:
 
 ```bash
-cd ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
+cd ~/.openclaw/workspace/skills/lg-{device-type}-{short-id}
 echo "LG_DEVICE_ID=<device_id>" > .env
 chmod 600 .env
 ```
@@ -178,7 +178,7 @@ Create `SKILL.md` for the device following `references/skill-generation-guide.md
 ### 15. Verify Skill
 
 ```bash
-cd ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
+cd ~/.openclaw/workspace/skills/lg-{device-type}-{short-id}
 python lg_control.py status
 ```
 

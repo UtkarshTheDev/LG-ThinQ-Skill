@@ -100,4 +100,4 @@ Always consider device state and enforce confirmation:
 **Input**: Device profile (`profiles/device_{id}.json`)
 **Tool**: `scripts/generate_control_script.py`
 **Output**: `lg_control.py` + device `SKILL.md`
-**Location**: `~/.openclaw/workspaces/skills/lg-{type}-{id}/`
+**Location**: `~/.openclaw/workspace/skills/lg-{type}-{id}/`

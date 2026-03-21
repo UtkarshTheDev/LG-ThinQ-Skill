@@ -8,7 +8,7 @@ Always follow these mandates to ensure user privacy and system integrity:
 1.  **Explain First**: Tell the user what you are about to do before doing it.
 2.  **Ask First**: Use `ask_user` before every network call or file system operation.
 3.  **Zero-Leak**: Never ask the user to paste their `LG_PAT` into the chat.
-4.  **Credential Isolation**: Only `LG_DEVICE_ID` belongs in the device skill's `.env`. **NEVER** copy the `LG_PAT` or `LG_COUNTRY` into these sub-folders.
+4.  **Credential Isolation**: Only `LG_DEVICE_ID` belongs in the device skill's `.env`. **NEVER** copy the `LG_PAT` into device folders. (Note: The assembly script handles `.env` creation automatically).
 
 ---
 
@@ -21,57 +21,50 @@ From the `setup.sh` summary output, identify the device to integrate.
 
 ## Step 2: Assemble Workspace
 
-Run the master assembly script. This one command performs 90% of the manual labor.
+Once the user selects an ID, move **directly** to this step. Run the master assembly script:
 
 ```bash
-python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>
+python3 scripts/assemble_device_workspace.py --id <DEVICE_ID> --confirm
 ```
 
-**What the script does for you:**
-1.  **Lookup**: Automatically identifies the model and alias from the discovery database.
-2.  **Naming**: Sets the folder name using the first 8 characters of the ID (e.g., `lg-ac-2f33f241`).
-3.  **Engine Generation**: Builds a bug-free `lg_control.py` specialized for that hardware.
-4.  **Credential Isolation**: Creates a local `.env` with ONLY the `LG_DEVICE_ID`.
-5.  **Environment Setup**: Creates a `venv` and installs all `requirements.txt` dependencies.
-6.  **Verification**: Automatically runs a `status` check to prove the connection works.
+**Automated Actions (No manual effort required):**
+1.  **Engine Generation**: Builds a bug-free `lg_control.py` specialized for that hardware.
+2.  **Credential Isolation**: Automatically creates a local `.env` with ONLY the `LG_DEVICE_ID`.
+3.  **Environment Setup**: Creates a `venv` and installs all dependencies.
+4.  **Verification**: Automatically runs a `status` check to prove the connection works.
 
 ---
 
-## Step 3: Create SKILL.md (Documentation)
+## Step 3: Immediate Documentation (SKILL.md)
 
-The assembly script will output the `[AVAILABLE COMMANDS]` and `[ENGINE CODE]`. Use this output along with the local `profile.json` to write the documentation.
+As soon as the assembly script finishes, you **MUST** generate the documentation using the script's output and `references/api-reference.md`.
 
-1.  **Template**: Refer to `references/device-skill-template.md` for the structure.
-2.  **Details**: Include temperature ranges (e.g., 16-30°C) and supported modes (e.g., COOL, FAN) found in the profile.
-3.  **Location**: Save the file as `SKILL.md` in the newly created directory.
+1.  **Analyze Commands**: Use the `[AVAILABLE COMMANDS]` and `[ENGINE CODE]` printed by the assembler.
+2.  **Technical Reference**: Consult `references/api-reference.md` for API headers and error codes.
+3.  **Boilerplate**: Refer to `references/device-skill-template.md` for the correct `SKILL.md` structure.
+4.  **Save**: Write the completed `SKILL.md` to the newly created directory.
 
 ---
 
 ## Step 4: Memory & Persistence (MEMORY.md)
 
-This is the final step to ensure OpenClaw "remembers" your device in future sessions. The agent **MUST** record the following details in your global `MEMORY.md`:
-
-1.  **Trigger Phrase**: The natural language command to activate the skill (e.g., "OpenClaw, manage my Living Room AC").
-2.  **Path**: The exact location of the skill (`~/.openclaw/workspaces/skills/lg-{type}-{short_id}`).
+Finally, record the following details in the user's global `MEMORY.md`:
+1.  **Trigger Phrase**: The natural language command to activate the skill.
+2.  **Path**: The exact location of the skill.
 3.  **Command List**: A summary of key commands like `on`, `off`, `temp`, and `status`.
-
-**Workflow:**
-- Ask permission: *"May I save the commands and location for this new skill in your memory for future recall?"*
-- Save data: Use the `save_memory` tool to write the entry.
 
 ---
 
 ## Complete Example Session
 
 ```bash
-# 1. Run Setup
-./setup.sh
+# 1. Discovery
+./setup.sh --confirm
 
-# 2. Assemble (User provides ID)
-python3 scripts/assemble_device_workspace.py --id 2f33f241...
+# 2. Immediate Assembly (User provides ID)
+python3 scripts/assemble_device_workspace.py --id 2f33f241... --confirm
 
-# 3. Create SKILL.md (using printed context)
+# 3. Documentation (Agent writes SKILL.md immediately using script output)
 
-# 4. Persistence
-# Ask user permission to save to MEMORY.md
+# 4. Persistence (Agent saves to MEMORY.md)
 ```

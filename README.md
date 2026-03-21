@@ -36,7 +36,7 @@ export LG_COUNTRY="IN"  # Your 2-letter ISO country code (US, GB, IN, etc.)
 **Option B: .env File (Root Only)**
 Create a `.env` file **only** in the `lg-thinq-universal` directory:
 ```bash
-cd ~/.openclaw/workspaces/skills/lg-thinq-universal
+cd ~/.openclaw/workspace/skills/lg-thinq-universal
 echo "LG_PAT=your_token_here" > .env
 echo "LG_COUNTRY=your_country_code" >> .env
 ```
@@ -51,7 +51,7 @@ echo "LG_COUNTRY=your_country_code" >> .env
 Paste this simple prompt into your OpenClaw chat to begin the automated setup of your devices:
 
 ```text
-I have installed the lg-thinq-universal skill and added the tokens. Please follow the SKILL.md to run the discovery setup and help me assemble the workspaces for my LG devices.
+I have installed the lg-thinq-universal skill and added the tokens. Please follow the SKILL.md to run the discovery setup and help me assemble the workspace for my LG devices.
 ```
 
 ---
@@ -59,7 +59,7 @@ I have installed the lg-thinq-universal skill and added the tokens. Please follo
 ## 🛠️ How to Utilize This Skill
 
 ### The Universal Manager (`lg-thinq-universal`)
-Once the agent is ready, you can manually run management scripts from `~/.openclaw/workspaces/skills/lg-thinq-universal/`:
+Once the agent is ready, you can manually run management scripts from `~/.openclaw/workspace/skills/lg-thinq-universal/`:
 *   `python scripts/lg_api_tool.py list-devices`: See all your connected LG appliances.
 *   `python scripts/lg_api_tool.py check-config`: Verify your token and country are set correctly.
 

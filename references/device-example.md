@@ -134,7 +134,7 @@ description: Control LG Living Room AC. Use for: (1) Power on/off, (2) Adjust te
 ## File Structure
 
 ```
-~/.openclaw/workspaces/skills/lg-ac-livingroom/
+~/.openclaw/workspace/skills/lg-ac-livingroom/
 ├── SKILL.md        # Generated from profile
 ├── lg_control.py   # Generated from profile
 ├── lg_api_tool.py # Copied from universal skill
