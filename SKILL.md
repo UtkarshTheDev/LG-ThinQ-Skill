@@ -19,6 +19,14 @@ metadata:
 ## 🎯 Goal
 Provide a secure, automated gateway for LG ThinQ device integration. This skill acts as a **discovery engine** and **skill generator**, allowing users to control their appliances via OpenClaw without duplicating sensitive credentials across multiple files.
 
+## 📦 Supply Chain & Dependencies
+For transparency and security, this skill performs the following automated installation steps:
+1.  **Python Virtual Environment**: Created locally within the skill directory to ensure isolation.
+2.  **External Packages (via PyPI)**:
+    - `requests`: Used for secure communication with the LG ThinQ API.
+    - `python-dotenv`: Used for local management of the `LG_DEVICE_ID`.
+3.  **Network Access**: The installation script connects to `pypi.org` to download these libraries.
+
 ## 🔑 Obtaining Credentials
 If the user asks how to get their tokens, provide these instructions:
 
