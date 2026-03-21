@@ -44,21 +44,26 @@ python scripts/lg_api_tool.py check-config
 ```
 
 ### Step 2: Audit and Run Setup
-The `./setup.sh` script is used to create a Python virtual environment and fetch device profiles.
+The `./setup.sh` script prepares the discovery database.
 **Mandatory Audit**: Before execution, the agent **MUST** ask the user (using `ask_user`) if they would like to review the script content for security purposes.
 - If the user says **Yes**: Display the script using `cat ./setup.sh`.
 - After review (or if the user says **No**): Proceed to execution: `./setup.sh`.
-*Note: If on Windows, use `.\setup.ps1`.*
 
-### Step 3: Parse and Present Devices
-Review the output from `setup.sh`. Present the list of discovered devices (`name`, `type`, `id`) to the user and ask which ones to integrate.
+### Step 3: Device Selection
+Review the JSON output from `setup.sh`. Present the list of discovered devices to the user and ask which ID they wish to integrate.
 
-### Step 4: Generate Device-Specific Skills
-For each selected device, follow `references/skill-creation.md`:
-1.  **Generate Script**: Use `scripts/generate_control_script.py` with the fetched profile.
-2.  **Create Skill Directory**: Target `~/.openclaw/workspaces/skills/lg-{type}-{location}`.
-3.  **Deploy Files**: Move `lg_control.py`, copy `scripts/lg_api_tool.py`, and create a local `.env` with **ONLY** the `LG_DEVICE_ID`.
-4.  **Create SKILL.md**: Use `references/skill-generation-guide.md` to build the device skill.
+### Step 4: Assemble Workspace
+Once an ID is selected, run the automated assembly script:
+```bash
+python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>
+```
+*Note: Use `--location name` to customize the directory.*
+
+### Step 5: Document and Persist
+After the assembly script completes:
+1.  **Analyze**: Review the `[AVAILABLE COMMANDS]` and `[ENGINE CODE]` printed by the script.
+2.  **Generate documentation**: Create a high-quality `SKILL.md` in the new directory using `references/device-skill-template.md` as a guide.
+3.  **Persistence**: Save the trigger phrase, skill path, and command summary into the user's `MEMORY.md` file (using `save_memory`).
 
 ## ⌨️ Universal Management Commands
 
@@ -73,11 +78,10 @@ Use these commands for maintenance and discovery:
 
 ## 🛡️ Security Mandates
 1.  **Zero-Leak Policy**: NEVER ask the user to paste their `LG_PAT` into the chat.
-2.  **Credential Isolation**: NEVER copy `LG_PAT` into generated device skill directories.
-3.  **Confirmation Protocol**: Before every network call, file write, or device control command, the agent **MUST**:
-    - Explain exactly what action it is about to perform (e.g., "I am going to save the API route to your local cache").
-    - Ask for user permission using `ask_user`.
-4.  **Local-Only**: All API communication must remain local.
+2.  **Credential Isolation**: NEVER copy `LG_PAT` or `LG_COUNTRY` into generated device skill directories. Only `LG_DEVICE_ID` is permitted in those locations.
+3.  **Pre-Action Briefing**: Before every network call, file write, or device control command, the agent **MUST** explain exactly what it is about to perform (e.g., "I am going to save the API route to your local cache" or "I am going to create a new directory for your AC").
+4.  **Confirmation Protocol**: After the briefing, ask for user permission using `ask_user` before executing the command.
+5.  **Local-Only**: All API communication must remain local.
 
 ## 📚 References
 
