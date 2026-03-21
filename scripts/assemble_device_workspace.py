@@ -64,6 +64,7 @@ def main():
     parser.add_argument("--id", required=True, help="Full Device ID")
     parser.add_argument("--location", help="Custom location name (e.g. livingroom)")
     parser.add_argument("--force", action="store_true", help="Overwrite existing skill")
+    parser.add_argument("--confirm", action="store_true", help="Explicitly confirm all actions in the manifest")
     args = parser.parse_args()
 
     # 1. Lookup Device
@@ -75,18 +76,31 @@ def main():
         log("Device ID not found in local database. Run setup.sh to refresh.", "ERROR")
         sys.exit(1)
     
-    # 2. Determine Paths
     short_id = get_short_id(args.id)
     device_type = guess_type(target_device.get('model', 'unknown'))
     location_suffix = args.location if args.location else short_id
-    
     skill_name = f"lg-{device_type}-{location_suffix}"
     skill_path = os.path.join(SKILLS_ROOT, skill_name)
-    
-    log(f"Target Skill: {skill_name}")
-    log(f"Target Path:  {skill_path}")
 
-    # 3. Clean / Prepare Directory
+    # SAFETY MANIFEST
+    if not args.confirm:
+        print("\n" + "!"*60)
+        print("🛡️  SAFETY MANIFEST: PENDING ACTIONS")
+        print("!"*60)
+        print(f"The following actions will be performed for: {target_device.get('name')}")
+        print(f"1. [FILE] Create directory: {skill_path}")
+        print(f"2. [FILE] Write engine:    {skill_path}/lg_control.py")
+        print(f"3. [FILE] Write config:    {skill_path}/.env (Device ID isolation)")
+        print(f"4. [FILE] Copy tools:      lg_api_tool.py, requirements.txt")
+        print(f"5. [ENV]  Setup venv:      Create venv and install dependencies")
+        print(f"6. [NET]  Verification:    Call LG API to verify device status")
+        print("\n[ACTION REQUIRED]")
+        print("Please review these actions. If you approve, run this command again with the '--confirm' flag.")
+        print("!"*60 + "\n")
+        sys.exit(0)
+
+    # 2. Proceed with Assembly (Only if --confirm is present)
+    log(f"Assembling workspace for {skill_name}...")
     if os.path.exists(skill_path):
         if args.force:
             log("Removing existing skill directory...", "WARN")

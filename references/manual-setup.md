@@ -44,6 +44,7 @@ export LG_COUNTRY="IN"
 echo "LG_PAT=thinqpat_your_token_here" > .env
 echo "LG_COUNTRY=IN" >> .env
 ```
+> ⚠️ **SECURITY WARNING**: This `.env` file should ONLY exist in the universal manager root. NEVER copy your `LG_PAT` into generated per-device folders. Shell environment variables are always the safest option.
 
 Shell env takes precedence. API server URL is cached in `.api_server_cache`.
 
