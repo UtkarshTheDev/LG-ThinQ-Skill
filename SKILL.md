@@ -45,18 +45,21 @@ python scripts/lg_api_tool.py check-config
 
 ### Step 2: Audit and Run Setup
 The `./setup.sh` script prepares the discovery database.
-**Mandatory Audit**: Before execution, the agent **MUST** ask the user (using `ask_user`) if they would like to review the script content for security purposes.
-- If the user says **Yes**: Display the script using `cat ./setup.sh`.
-- After review (or if the user says **No**): Proceed to execution: `./setup.sh`.
+**Mandatory Safety Flow**: 
+1.  **Generate Manifest**: Run `./setup.sh` (without flags) to generate the Safety Manifest.
+2.  **Brief User**: Present the Manifest to the user and explain exactly what actions will be performed.
+3.  **Ask for Permission**: Use `ask_user` to obtain explicit consent.
+4.  **Execute**: Only after approval, run: `./setup.sh --confirm`.
 
 ### Step 3: Device Selection
-Review the JSON output from `setup.sh`. Present the list of discovered devices to the user and ask which ID they wish to integrate.
+Review the output from setup. Present the list of discovered devices to the user and ask which ID they wish to integrate.
 
 ### Step 4: Assemble Workspace
-Once an ID is selected, run the automated assembly script:
-```bash
-python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>
-```
+Once an ID is selected, follow the same **Safety Flow**:
+1.  **Generate Manifest**: Run `python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>` (without the confirm flag).
+2.  **Brief User**: Explain the specific directory and file operations listed in the manifest.
+3.  **Ask for Permission**: Use `ask_user` to obtain consent.
+4.  **Execute**: Only after approval, run: `python3 scripts/assemble_device_workspace.py --id <DEVICE_ID> --confirm`.
 *Note: Use `--location name` to customize the directory.*
 
 ### Step 5: Document and Persist
