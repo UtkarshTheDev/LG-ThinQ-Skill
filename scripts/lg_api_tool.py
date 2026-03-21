@@ -1,29 +1,39 @@
 import os, sys, json, requests, re
 from dotenv import load_dotenv
 
-# Load .env from project root only (where skill is installed)
-# Shell environment variables take precedence via override=False
+# Load environment variables
+# 1. Load from current directory (e.g. for LG_DEVICE_ID in sub-skills)
 script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir) # Go up one level to project root
-env_path = os.path.join(project_root, ".env")
-if os.path.exists(env_path):
-    load_dotenv(env_path, override=False)
+current_env = os.path.join(os.getcwd(), ".env")
+if os.path.exists(current_env):
+    load_dotenv(current_env, override=False)
 
-# Cache file for API server (separate from .env to avoid conflicts)
+# 2. Load from parent directory (e.g. for LG_PAT in the universal root)
+project_root = os.path.dirname(script_dir) 
+root_env = os.path.join(project_root, ".env")
+if os.path.exists(root_env):
+    load_dotenv(root_env, override=False)
+
+# Cache file for API server (always in the universal root for consistency)
 CACHE_DIR = project_root
 API_SERVER_CACHE = os.path.join(CACHE_DIR, ".api_server_cache")
 
 
 def get_defaults():
     """Load standard API defaults from bundled reference file"""
-    try:
-        defaults_path = os.path.join(
-            project_root, "references", "public_api_constants.json"
-        )
-        with open(defaults_path, "r") as f:
-            return json.load(f)
-    except Exception:
-        return {}
+    # Try current folder references/ first (for sub-skills)
+    local_path = os.path.join(script_dir, "references", "public_api_constants.json")
+    # Try parent root references/ second (for universal root)
+    parent_path = os.path.join(project_root, "references", "public_api_constants.json")
+    
+    for p in [local_path, parent_path]:
+        if os.path.exists(p):
+            try:
+                with open(p, "r") as f:
+                    return json.load(f)
+            except Exception:
+                continue
+    return {}
 
 
 DEFAULTS = get_defaults()
