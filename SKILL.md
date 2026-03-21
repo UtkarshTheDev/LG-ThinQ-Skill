@@ -1,7 +1,7 @@
 ---
 name: lg-thinq-universal
 description: Universal LG ThinQ device manager. Discovers appliances (AC, Refrigerator, Washer, etc.) and generates secure, device-specific OpenClaw skills. Use when the user wants to: (1) Integrate LG ThinQ devices, (2) Know how to get an LG PAT token, (3) Discover new LG appliances, (4) Create specialized control skills for their home automation.
-version: 0.5.0
+version: 0.5.1
 requires:
   env:
     - LG_PAT
@@ -38,43 +38,34 @@ If the user asks how to get their tokens, provide these instructions:
 
 ## 🛠️ Prerequisites
 The agent **MUST** ensure the following are set before proceeding:
-1.  **`LG_PAT`**: Stored in shell environment or `.env`.
-2.  **`LG_COUNTRY`**: Stored in shell environment or `.env`.
+1.  **`LG_PAT`**: Stored in shell environment or root `.env`.
+2.  **`LG_COUNTRY`**: Stored in shell environment or root `.env`.
 
 ## 🔄 Agent Workflow (Mandatory)
 
 Follow these steps in order when a user requests setup:
 
-### Step 1: Verify Configuration
-Check if `LG_PAT` and `LG_COUNTRY` are present. Use the tool to verify:
-```bash
-python scripts/lg_api_tool.py check-config
-```
+### Step 1: Discovery
+Run the automated discovery script. It validates configuration and prepares the device database. 
 
-### Step 2: Audit and Run Setup
-The `./setup.sh` script prepares the discovery database.
 **Mandatory Safety Flow**: 
-1.  **Generate Manifest**: Run `./setup.sh` (without flags) to generate the Safety Manifest.
-2.  **Brief User**: Present the Manifest to the user and explain exactly what actions will be performed.
+1.  **Generate Manifest**: Run `./setup.sh` (without flags).
+2.  **Brief User**: Present the Manifest and explain exactly what actions will be performed.
 3.  **Ask for Permission**: Use `ask_user` to obtain explicit consent.
 4.  **Execute**: Only after approval, run: `./setup.sh --confirm`.
 
-### Step 3: Device Selection
-Review the output from setup. Present the list of discovered devices to the user and ask which ID they wish to integrate.
+### Step 2: Assemble Workspace
+Review the output from Step 1. Present the discovered devices to the user. Once an ID is selected, move **immediately** to assembly:
+1.  **Generate Manifest**: Run `python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>` (without flags).
+2.  **Ask for Permission**: Use `ask_user` to obtain consent for the file/directory operations.
+3.  **Execute**: Run: `python3 scripts/assemble_device_workspace.py --id <DEVICE_ID> --confirm`.
 
-### Step 4: Assemble Workspace
-Once an ID is selected, follow the same **Safety Flow**:
-1.  **Generate Manifest**: Run `python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>` (without the confirm flag).
-2.  **Brief User**: Explain the specific directory and file operations listed in the manifest.
-3.  **Ask for Permission**: Use `ask_user` to obtain consent.
-4.  **Execute**: Only after approval, run: `python3 scripts/assemble_device_workspace.py --id <DEVICE_ID> --confirm`.
-*Note: Use `--location name` to customize the directory.*
-
-### Step 5: Document and Persist
-After the assembly script completes:
+### Step 3: Document and Persist
+After the assembly script completes, you **MUST** immediately:
 1.  **Analyze**: Review the `[AVAILABLE COMMANDS]` and `[ENGINE CODE]` printed by the script.
-2.  **Generate documentation**: Create a high-quality `SKILL.md` in the new directory using `references/device-skill-template.md` as a guide.
-3.  **Persistence**: Save the trigger phrase, skill path, and command summary into the user's `MEMORY.md` file (using `save_memory`).
+2.  **Consult Reference**: Read `references/api-reference.md` for technical headers and control logic.
+3.  **Generate SKILL.md**: Create the documentation in the new directory using `references/device-skill-template.md` as your guide.
+4.  **Persistence**: Save the trigger phrase, skill path, and command summary into your global `MEMORY.md`.
 
 ## ⌨️ Universal Management Commands
 
@@ -89,10 +80,8 @@ Use these commands for maintenance and discovery:
 
 ## 🛡️ Security Mandates
 1.  **Zero-Leak Policy**: NEVER ask the user to paste their `LG_PAT` into the chat.
-2.  **Credential Isolation**: NEVER copy `LG_PAT` or `LG_COUNTRY` into generated device skill directories. Only `LG_DEVICE_ID` is permitted in those locations.
-3.  **Pre-Action Briefing**: Before every network call, file write, or device control command, the agent **MUST** explain exactly what it is about to perform (e.g., "I am going to save the API route to your local cache" or "I am going to create a new directory for your AC").
-4.  **Confirmation Protocol**: After the briefing, ask for user permission using `ask_user` before executing the command.
-5.  **Local-Only**: All API communication must remain local.
+2.  **Credential Isolation**: NEVER copy `LG_PAT` into generated device skill directories. Only `LG_DEVICE_ID` is permitted in those locations.
+3.  **Local-Only**: All API communication must remain local.
 
 ## 📚 References
 
@@ -111,4 +100,4 @@ Use these commands for maintenance and discovery:
 |---------|------------|
 | `401 Unauthorized` | Token expired. Guide user to [https://connect-pat.lgthinq.com](https://connect-pat.lgthinq.com). |
 | `No devices found` | Verify device is added to the official **LG ThinQ App** on mobile first. |
-| `Permission denied` | Run `chmod +x setup.sh`. |
+| `Permission denied` | The script should already be executable. If not, inform the developer. |
