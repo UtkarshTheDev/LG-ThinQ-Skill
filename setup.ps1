@@ -158,6 +158,30 @@ function Fetch-Profiles {
 
 # Main execution
 function Main {
+    # SAFETY CHECK
+    $Confirmed = $false
+    foreach ($arg in $args) {
+        if ($arg -eq "--confirm") { $Confirmed = $true }
+    }
+
+    if (-not $Confirmed) {
+        Write-Host ""
+        Write-Host "🛡️  SAFETY MANIFEST: LG THINQ DISCOVERY" -ForegroundColor Yellow
+        Write-Host "========================================"
+        Write-Host "This script will perform the following actions:"
+        Write-Host "1. [ENV]  Install dependencies from requirements.txt globally"
+        Write-Host "2. [NET]  Discover regional API server (uses LG_PAT/LG_COUNTRY)"
+        Write-Host "3. [NET]  Fetch list of devices and technical profiles"
+        Write-Host "4. [FILE] Save profiles to ./profiles/ and update database"
+        Write-Host ""
+        Write-Host "[ACTION REQUIRED]" -ForegroundColor Cyan
+        Write-Host "Please review these actions. If you approve, run:"
+        Write-Host "   .\setup.ps1 --confirm"
+        Write-Host "========================================"
+        Write-Host ""
+        return
+    }
+
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host "LG ThinQ Universal - Setup (Windows)"
     Write-Host "========================================" -ForegroundColor Cyan
@@ -171,4 +195,4 @@ function Main {
     Write-Info "Setup complete!"
 }
 
-Main
+Main $args

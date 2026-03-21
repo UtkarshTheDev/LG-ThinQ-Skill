@@ -219,6 +219,33 @@ for d in devices:
 
 # Main execution
 main() {
+    # SAFETY CHECK
+    CONFIRMED=false
+    for arg in "$@"; do
+        if [ "$arg" == "--confirm" ]; then
+            CONFIRMED=true
+        fi
+    done
+
+    if [ "$CONFIRMED" = false ]; then
+        echo ""
+        echo "🛡️  SAFETY MANIFEST: LG THINQ DISCOVERY"
+        echo "========================================"
+        echo "This script will perform the following actions:"
+        echo "1. [ENV]  Create virtual environment at ./venv"
+        echo "2. [ENV]  Install dependencies from requirements.txt"
+        echo "3. [NET]  Discover regional API server (uses LG_PAT/LG_COUNTRY)"
+        echo "4. [NET]  Fetch list of devices and technical profiles"
+        echo "5. [FILE] Save profiles to ./profiles/ and update database"
+        echo ""
+        echo "[ACTION REQUIRED]"
+        echo "Please review these actions. If you approve, run:"
+        echo "   ./setup.sh --confirm"
+        echo "========================================"
+        echo ""
+        exit 0
+    fi
+
     echo "========================================"
     echo "LG ThinQ Universal - Setup"
     echo "========================================"
