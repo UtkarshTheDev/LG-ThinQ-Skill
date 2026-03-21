@@ -59,7 +59,7 @@ SERVICE_PHASE = os.getenv("LG_SERVICE_PHASE", "{service_phase}")
 
 def get_headers(snapshot=None):
     if not PAT:
-        raise ValueError("Missing LG_PAT in environment variables")
+        return None # Handled in request_with_retry
         
     headers = {{
         "Authorization": f"Bearer {{PAT}}",
@@ -74,10 +74,22 @@ def get_headers(snapshot=None):
     return headers
 
 def request_with_retry(method, path, payload=None, snapshot=None):
+    if not DEVICE_ID:
+        return {{"success": False, "error": "Missing LG_DEVICE_ID. Ensure it is set in your .env file."}}
+    if not PAT:
+        return {{"success": False, "error": "Missing LG_PAT. Ensure it is set in your shell or root .env."}}
+
     url = f"{{BASE_URL}}{{path}}"
     headers = get_headers(snapshot)
     try:
-        res = requests.request(method=method, url=url, headers=headers, json=payload, timeout=10)
+        res = requests.request(method=method, url=url, headers=headers, json=payload, timeout=15)
+        
+        # Structured Error Handling
+        if res.status_code == 401:
+            return {{"success": False, "status": 401, "error": "Unauthorized. Your LG_PAT may be expired. Refresh it at connect-pat.lgthinq.com"}}
+        if res.status_code == 404:
+            return {{"success": False, "status": 404, "error": f"Device {{DEVICE_ID}} not found. Check your LG_DEVICE_ID."}}
+        
         return {{"success": res.status_code == 200, "data": res.json(), "status": res.status_code}}
     except Exception as e:
         return {{"success": False, "error": str(e)}}
@@ -106,19 +118,18 @@ def get_status():
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
-        print((
-            "LG Device Control Script - {device_id}\n\n"
-            "Usage: python3 lg_control.py <command> [value]\n\n"
-            "Commands:\n"
-            "  status              Get current device state\n"
-            "  on                  Turn device on (POWER_ON)\n"
-            "  off                 Turn device off (POWER_OFF)\n"
-            "{commands_help}\n"
-            "Examples:\n"
-            "  python3 lg_control.py status\n"
-            "  python3 lg_control.py on\n"
-            "  python3 lg_control.py temp 24\n"
-        ).format(device_id=DEVICE_ID, commands_help="{commands_help}"))
+        commands_help = \"\"\"{commands_help}\"\"\"
+        print(f"LG Device Control Script - {{DEVICE_ID or 'NOT_SET'}}\\n")
+        print("Usage: python3 lg_control.py <command> [value]\\n")
+        print("Commands:")
+        print("  status              Get current device state")
+        print("  on                  Turn device on (POWER_ON)")
+        print("  off                 Turn device off (POWER_OFF)")
+        print(commands_help)
+        print("\\nExamples:")
+        print("  python3 lg_control.py status")
+        print("  python3 lg_control.py on")
+        print("  python3 lg_control.py temp 24")
         return
 
     cmd = sys.argv[1].lower()
@@ -212,5 +223,14 @@ if __name__ == "__main__":
         print("Usage: python3 generate_control_script.py profile.json")
         sys.exit(1)
 
-    with open(sys.argv[1], "r") as f:
+    profile_path = sys.argv[1]
+    env_device_id = os.getenv("LG_DEVICE_ID")
+    
+    if env_device_id:
+        sys.stderr.write(f"INFO: Generating control script for specific device ID: {env_device_id}\n")
+    else:
+        sys.stderr.write("WARNING: No LG_DEVICE_ID found in environment. The generated script will default to 'NOT_SET'.\n")
+        sys.stderr.write("         Ensure the agent writes the correct ID to the local .env file during setup.\n")
+
+    with open(profile_path, "r") as f:
         print(generate_script(f.read()))
