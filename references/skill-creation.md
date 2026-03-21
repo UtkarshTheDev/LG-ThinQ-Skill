@@ -1,255 +1,77 @@
-# Skill Creation Workflow
+# Skill Creation Workflow (Autonomous Assembly)
 
-After running `setup.sh`, follow this workflow to create a device skill. Do this for **each device** you want to integrate.
+This guide describes the automated workflow for creating a specialized device skill using the workspace assembler.
 
-## Security Protocol Reminder
+## 🛡️ Security Protocol (Strict Mandates)
 
-Always follow these mandates:
-1. **Ask First**: Use `ask_user` before API calls and file operations
-2. **Zero-Leak**: Never ask user to paste `LG_PAT` into chat
-3. **Minimal Credentials**: Only `LG_DEVICE_ID` in skill's `.env`
-
----
-
-## Prerequisites
-
-- `setup.sh` completed successfully
-- Device profiles fetched in `profiles/` directory
-- User has selected which device(s) to integrate
+Always follow these mandates to ensure user privacy and system integrity:
+1.  **Explain First**: Tell the user what you are about to do before doing it.
+2.  **Ask First**: Use `ask_user` before every network call or file system operation.
+3.  **Zero-Leak**: Never ask the user to paste their `LG_PAT` into the chat.
+4.  **Credential Isolation**: Only `LG_DEVICE_ID` belongs in the device skill's `.env`. **NEVER** copy the `LG_PAT` or `LG_COUNTRY` into these sub-folders.
 
 ---
 
 ## Step 1: Select Device
 
-From setup output, identify the device to integrate:
-
-```json
-{
-  "success": true,
-  "apiServer": "https://api-kic.lgthinq.com",
-  "profilesDir": "profiles",
-  "devices": [
-    {
-      "id": "abc123...",
-      "name": "Living Room AC",
-      "type": "RAC_056905_WW",
-      "profilePath": "profiles/device_abc123....json"
-    },
-    {
-      "id": "def456...",
-      "name": "Kitchen Fridge",
-      "type": "REFRIGERATOR",
-      "profilePath": "profiles/device_def456....json"
-    }
-  ]
-}
-```
-
-Choose one device at a time for clarity.
+From the `setup.sh` summary output, identify the device to integrate. 
+*   **Action**: Ask the user which device ID from the list they wish to use.
 
 ---
 
-## Step 2: Generate Control Script
+## Step 2: Assemble Workspace
 
-The control script is generated from the device profile and contains all available commands.
+Run the master assembly script. This one command performs 90% of the manual labor.
 
 ```bash
-python scripts/generate_control_script.py <profile_path> > lg_control.py
-chmod +x lg_control.py
+python3 scripts/assemble_device_workspace.py --id <DEVICE_ID>
 ```
 
-**What gets generated:**
-- All controllable properties from the profile (read-write properties)
-- `status` command - Get current device state
-- `on` / `off` commands - Power control (if device supports it)
-- Device-specific commands based on capabilities
-
-**Example**: For an AC, the script might include:
-- `temp <value>` - Set temperature
-- `mode <cool|heat|dry|fan>` - Set operation mode
-- `fan <low|medium|high>` - Set fan speed
+**What the script does for you:**
+1.  **Lookup**: Automatically identifies the model and alias from the discovery database.
+2.  **Naming**: Sets the folder name using the first 8 characters of the ID (e.g., `lg-ac-2f33f241`).
+3.  **Engine Generation**: Builds a bug-free `lg_control.py` specialized for that hardware.
+4.  **Credential Isolation**: Creates a local `.env` with ONLY the `LG_DEVICE_ID`.
+5.  **Environment Setup**: Creates a `venv` and installs all `requirements.txt` dependencies.
+6.  **Verification**: Automatically runs a `status` check to prove the connection works.
 
 ---
 
-## Step 3: Test Control Script
+## Step 3: Create SKILL.md (Documentation)
 
-Before creating the skill, verify the script works:
+The assembly script will output the `[AVAILABLE COMMANDS]` and `[ENGINE CODE]`. Use this output along with the local `profile.json` to write the documentation.
 
-```bash
-# Show all available commands
-python lg_control.py --help
-
-# Get current state
-python lg_control.py status
-
-# Test a command
-python lg_control.py on
-```
-
-If errors occur:
-- Check `LG_PAT` is set correctly
-- Verify `LG_API_SERVER` is cached (run `save-route` if needed)
-- Use `--debug` flag for detailed output
+1.  **Template**: Refer to `references/device-skill-template.md` for the structure.
+2.  **Details**: Include temperature ranges (e.g., 16-30°C) and supported modes (e.g., COOL, FAN) found in the profile.
+3.  **Location**: Save the file as `SKILL.md` in the newly created directory.
 
 ---
 
-## Step 4: Create Skill Directory
+## Step 4: Memory & Persistence (MEMORY.md)
 
-Create a dedicated directory for this device's skill:
+This is the final step to ensure OpenClaw "remembers" your device in future sessions. The agent **MUST** record the following details in your global `MEMORY.md`:
 
-```bash
-mkdir -p ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
-```
+1.  **Trigger Phrase**: The natural language command to activate the skill (e.g., "OpenClaw, manage my Living Room AC").
+2.  **Path**: The exact location of the skill (`~/.openclaw/workspaces/skills/lg-{type}-{short_id}`).
+3.  **Command List**: A summary of key commands like `on`, `off`, `temp`, and `status`.
 
-**Naming convention:**
-- `device-type`: Device category (ac, fridge, washer, etc.)
-- `short-id`: Abbreviated device ID for uniqueness
-
-**Examples:**
-- `lg-ac-livingroom`
-- `lg-ac-bedroom`
-- `lg-fridge-kitchen`
-
----
-
-## Step 5: Move Files to Skill Directory
-
-Copy necessary files into the skill directory:
-
-```bash
-# Move the generated control script
-mv lg_control.py ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}/
-
-# Copy the API tool for future use
-cp scripts/lg_api_tool.py ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}/
-```
-
-**Note**: Keep the original `lg-api-tool.py` in the universal skill folder. Each device skill gets its own copy.
-
----
-
-## Step 6: Create Local .env
-
-Create a `.env` file with only `LG_DEVICE_ID`:
-
-```bash
-cd ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
-echo "LG_DEVICE_ID=<device_id>" > .env
-chmod 600 .env
-```
-
-**Security checklist:**
-- [ ] `.env` contains ONLY `LG_DEVICE_ID`
-- [ ] `LG_PAT` is NOT in this file
-- [ ] `LG_COUNTRY` is NOT in this file
-- [ ] File permissions are `600` (owner read/write only)
-
----
-
-## Step 7: Create Skill SKILL.md
-
-Create `SKILL.md` following:
-- `references/skill-generation-guide.md` - Structure and elements
-- `references/device-example.md` - Complete example of output
-
-**Required elements:**
-- Frontmatter with `name`, `description` (include trigger keywords)
-- Command table with all available commands
-- Natural language mapping
-- Decision logic (power check, sequencing)
-- Error handling
-
-**Complete example**: See `references/device-example.md` for full SKILL.md, lg_control.py, and file structure.
-
----
-
-## Step 8: Verify Skill
-
-Test the skill works end-to-end:
-
-```bash
-cd ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
-python lg_control.py status
-```
-
-Expected: Returns current device state
-Errors to watch for:
-- `LG_PAT is missing` - Check environment
-- `401 Unauthorized` - Token expired or invalid
-- `Device offline` - Check device connectivity
-
----
-
-## Step 9: Save to Memory (With Consent)
-
-Ask user for permission:
-
-> "May I record this setup in your memory for future recall? I'll save a trigger phrase so you can control your device easily."
-
-If approved, save to memory:
-
-```
-[LG ThinQ Device Setup]
-Device: {Device Name}
-Trigger: "OpenClaw, manage my {Device Name}"
-Skill: ~/.openclaw/workspaces/skills/lg-{device-type}-{short-id}
-```
-
----
-
-## Step 10: Notify User
-
-Inform the user their device is ready:
-
-> "Your {Device Name} is integrated! Try saying: 'OpenClaw, check the status of my {Device Name}'."
+**Workflow:**
+- Ask permission: *"May I save the commands and location for this new skill in your memory for future recall?"*
+- Save data: Use the `save_memory` tool to write the entry.
 
 ---
 
 ## Complete Example Session
 
 ```bash
-# 1. Select device
-DEVICE_ID="abc123def456"
-DEVICE_TYPE="ac"
-DEVICE_NAME="Living Room AC"
+# 1. Run Setup
+./setup.sh
 
-# 2. Generate control script
-python scripts/generate_control_script.py profiles/device_$DEVICE_ID.json > lg_control.py
-chmod +x lg_control.py
+# 2. Assemble (User provides ID)
+python3 scripts/assemble_device_workspace.py --id 2f33f241...
 
-# 3. Test
-python lg_control.py --help
-python lg_control.py status
+# 3. Create SKILL.md (using printed context)
 
-# 4. Create skill directory
-mkdir -p ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom
-
-# 5. Move files
-mv lg_control.py ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom/
-cp scripts/lg_api_tool.py ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom/
-
-# 6. Create local .env
-cd ~/.openclaw/workspaces/skills/lg-$DEVICE_TYPE-livingroom
-echo "LG_DEVICE_ID=$DEVICE_ID" > .env
-chmod 600 .env
-
-# 7. Create SKILL.md (see references/skill-generation-guide.md)
-
-# 8. Verify
-python lg_control.py status
-
-# 9. Memory (with consent via ask_user)
-
-# 10. Notify user
+# 4. Persistence
+# Ask user permission to save to MEMORY.md
 ```
-
----
-
-## Repeat for Multiple Devices
-
-For each additional device, repeat Steps 1-10. Each device gets:
-- Its own directory
-- Its own `lg_control.py`
-- Its own `LG_DEVICE_ID` in `.env`
-- Its own `SKILL.md`
-- Its own memory entry
