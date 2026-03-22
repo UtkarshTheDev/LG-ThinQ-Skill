@@ -57,7 +57,7 @@ Translate user intent to CLI commands:
 ### Error Handling
 | Error | Response |
 |-------|----------|
-| 401 Unauthorized | Check LG_PAT in `.env` |
+| 401 Unauthorized | Check that `LG_PAT` is exported in the shell |
 | 412 Snapshot mismatch | Refresh state, retry |
 | Device offline | Check device connectivity |
 
@@ -70,7 +70,7 @@ Always consider device state and enforce confirmation:
 1. **Power Check**: If device is off and user wants to change settings, turn on first
 2. **Sequencing**: Wait 2 seconds between power-on and subsequent commands
 3. **Verification**: Confirm changes with `status`
-4. **Safety Confirmation**: Every control command **MUST** include the `--confirm` flag (e.g., `python lg_control.py on --confirm`). The agent must explain the action and get `ask_user` consent before execution.
+4. **Safety Confirmation**: The agent must explain the action before running a control command.
 5. **Memory Persistence**: The final setup step **MUST** be to save the skill's name, path, and commands to the user's `MEMORY.md` file.
 6. **Range Enforcement**: Respect `min/max` from profile
 

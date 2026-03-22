@@ -20,7 +20,7 @@ The unique identifier for this device is stored in the local `.env` file within 
 - **File**: `~/.openclaw/workspace/skills/lg-{type}-{location}/.env`
 - **Variable**: `LG_DEVICE_ID`
 
-**Note**: Your global `LG_PAT` and `LG_COUNTRY` are read from your shell environment or the universal skill's root folder.
+**Note**: Your `LG_PAT` and `LG_COUNTRY` must be available in your shell environment when this skill runs.
 
 ## ⌨️ Commands
 

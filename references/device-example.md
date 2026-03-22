@@ -101,7 +101,7 @@ description: Control LG Living Room AC. Use for: (1) Power on/off, (2) Adjust te
 | `on` | Turn AC on | - |
 | `off` | Turn AC off | - |
 | `status` | Get current state | - |
-| `temp <val>` | Set temperature | 16-30 |
+| `cooltargettemperature <val>` | Set temperature | 16-30 |
 | `mode <val>` | Set mode | cool/heat/dry/fan/auto |
 
 ## Natural Language Mapping
@@ -109,8 +109,8 @@ description: Control LG Living Room AC. Use for: (1) Power on/off, (2) Adjust te
 | User Says | Action |
 |-----------|--------|
 | "turn on the AC" | `on` |
-| "it's too hot" | `on` + `temp 22` |
-| "set to 24 degrees" | `temp 24` |
+| "it's too hot" | `on` + `cooltargettemperature 22` |
+| "set to 24 degrees" | `cooltargettemperature 24` |
 | "turn off" | `off` |
 | "check if AC is running" | `status` |
 
@@ -124,7 +124,7 @@ description: Control LG Living Room AC. Use for: (1) Power on/off, (2) Adjust te
 
 | Error | Action |
 |-------|--------|
-| 401 | Check LG_PAT in `.env` |
+| 401 | Check that `LG_PAT` is exported in the shell |
 | 412 | Refresh state, retry |
 | Device offline | Check device connectivity |
 ```
@@ -148,7 +148,7 @@ description: Control LG Living Room AC. Use for: (1) Power on/off, (2) Adjust te
 ### Direct Commands
 ```bash
 python lg_control.py on
-python lg_control.py temp 24
+python lg_control.py cooltargettemperature 24
 python lg_control.py status
 python lg_control.py --help
 ```
