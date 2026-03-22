@@ -1,7 +1,7 @@
 ---
 name: lg-thinq-universal
 description: Universal LG ThinQ device manager. Discovers appliances (AC, Refrigerator, Washer, etc.) and generates secure, device-specific OpenClaw skills. Use when the user wants to: (1) Integrate LG ThinQ devices, (2) Know how to get an LG PAT token, (3) Discover new LG appliances, (4) Create specialized control skills for their home automation.
-version: 0.5.1
+version: 1.1.0
 requires:
   env:
     - LG_PAT
