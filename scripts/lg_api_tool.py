@@ -296,7 +296,7 @@ def main():
             sys.exit(1)
         print(json.dumps(get_state(d_id)))
     elif cmd == "control":
-        if len(filtered_args) < 5:
+        if len(filtered_args) < 6:
             print(
                 json.dumps(
                     {
