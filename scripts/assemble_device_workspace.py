@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import argparse
 import platform
+import re
 
 # Configuration
 # ------------------------------------------------------------------------------
@@ -12,14 +13,17 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
 PROFILES_DIR = os.path.join(PROJECT_ROOT, "profiles")
 DB_FILE = os.path.join(PROFILES_DIR, "devices.json")
-SKILLS_ROOT = os.path.expanduser("~/.openclaw/workspace/skills")
+CACHE_FILE = os.path.join(PROJECT_ROOT, ".api_server_cache")
+SKILLS_ROOT = os.path.expanduser(
+    os.getenv("OPENCLAW_SKILLS_ROOT", "~/.openclaw/workspace/skills")
+)
 
 # Helpers
 # ------------------------------------------------------------------------------
 def log(msg, type="INFO"):
     print(f"[FACTORY] [{type}] {msg}")
 
-def run_command(cmd, cwd=None, capture=False):
+def run_command(cmd, cwd=None, capture=False, env=None, exit_on_error=True):
     """Run a shell command safely."""
     try:
         result = subprocess.run(
@@ -29,10 +33,13 @@ def run_command(cmd, cwd=None, capture=False):
             check=True, 
             stdout=subprocess.PIPE if capture else None, 
             stderr=subprocess.PIPE if capture else None,
+            env=env,
             text=True
         )
         return result.stdout.strip() if capture else True
     except subprocess.CalledProcessError as e:
+        if not exit_on_error:
+            raise
         log(f"Command failed: {cmd}\nError: {e.stderr if capture else 'Check output'}", "ERROR")
         sys.exit(1)
 
@@ -48,6 +55,11 @@ def get_short_id(full_id):
     """Return the first 8 characters of the device ID."""
     return full_id[:8]
 
+def slugify(value):
+    """Convert a label into a stable filesystem-safe slug."""
+    value = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip().lower()).strip("-")
+    return value or "device"
+
 def guess_type(model_name):
     """Guess a simplified type string from the model name."""
     model = model_name.lower()
@@ -56,6 +68,95 @@ def guess_type(model_name):
     if "wash" in model: return "washer"
     if "dry" in model: return "dryer"
     return "device"
+
+def get_property_values(meta):
+    """Return human-friendly values for a writable property."""
+    value_meta = meta.get("value", {})
+    if meta.get("type") == "range":
+        writable = value_meta.get("w", {})
+        if isinstance(writable, dict):
+            minimum = writable.get("min")
+            maximum = writable.get("max")
+            step = writable.get("step")
+            if minimum is not None and maximum is not None:
+                label = f"{minimum}-{maximum}"
+                if step not in (None, 1):
+                    label += f" step {step}"
+                return label
+        return "numeric value"
+
+    writable = value_meta.get("w")
+    if isinstance(writable, list) and writable:
+        return "/".join(str(item) for item in writable)
+    return "See profile.json"
+
+def build_skill_markdown(skill_name, device_name, device_type, skill_path, properties):
+    """Generate the per-device SKILL.md from the discovered profile."""
+    emoji = {
+        "ac": "❄️",
+        "fridge": "🧊",
+        "washer": "🧺",
+        "dryer": "🌀",
+    }.get(device_type, "🔧")
+
+    feature_names = []
+    command_rows = [
+        "| Command | Description | Arguments |",
+        "|---------|-------------|-----------|",
+        "| `python lg_control.py status` | Get current state | - |",
+        "| `python lg_control.py on` | Turn device on | - |",
+        "| `python lg_control.py off` | Turn device off | - |",
+    ]
+
+    for category, props in properties.items():
+        if not isinstance(props, dict):
+            continue
+        for prop_name, meta in props.items():
+            if not isinstance(meta, dict) or "w" not in meta.get("mode", []):
+                continue
+            command_name = re.sub(r"[^a-zA-Z0-9_]", "", prop_name).lower()
+            feature_names.append(prop_name)
+            command_rows.append(
+                f"| `python lg_control.py {command_name} <value>` | "
+                f"Set `{prop_name}` ({category}) | {get_property_values(meta)} |"
+            )
+
+    summary_features = ", ".join(feature_names[:3]) if feature_names else "device settings"
+    return "\n".join([
+        "---",
+        f"name: {skill_name}",
+        f"description: Control LG {device_name} ({device_type}). Use for: (1) Power on/off, (2) Adjust {summary_features}, (3) Check status.",
+        "requires:",
+        "  env:",
+        "    - LG_PAT",
+        "    - LG_COUNTRY",
+        "  vars:",
+        "    - LG_DEVICE_ID",
+        "metadata:",
+        "  openclaw:",
+        f'    emoji: "{emoji}"',
+        "---",
+        "",
+        f"# {device_name} Control",
+        "",
+        "## Configuration",
+        f"- Skill path: `{skill_path}`",
+        "- Local `.env`: stores only `LG_DEVICE_ID` for this device.",
+        "- Required shell env: `LG_PAT` and `LG_COUNTRY` must be available when commands run.",
+        "",
+        "## Commands",
+        *command_rows,
+        "",
+        "## Workflow",
+        "1. Run `python lg_control.py status` before making changes.",
+        "2. Explain the action before sending mutating commands.",
+        "3. Run `python lg_control.py status` again to verify the new state.",
+        "",
+        "## Troubleshooting",
+        "- `401 Unauthorized`: refresh `LG_PAT` and ensure it is exported in the shell.",
+        "- `404 Device Not Found`: verify `LG_DEVICE_ID` in the local `.env`.",
+        "- Snapshot conflicts or offline failures: retry after checking connectivity in the ThinQ app.",
+    ]) + "\n"
 
 # Main Logic
 # ------------------------------------------------------------------------------
@@ -78,8 +179,9 @@ def main():
     
     short_id = get_short_id(args.id)
     device_type = guess_type(target_device.get('model', 'unknown'))
-    location_suffix = args.location if args.location else short_id
+    location_suffix = slugify(args.location) if args.location else short_id
     skill_name = f"lg-{device_type}-{location_suffix}"
+    os.makedirs(SKILLS_ROOT, exist_ok=True)
     skill_path = os.path.join(SKILLS_ROOT, skill_name)
 
     # SAFETY MANIFEST
@@ -90,11 +192,12 @@ def main():
         print(f"The following actions will be performed for: {target_device.get('name')}")
         print(f"1. [FILE] Create directory: {skill_path}")
         print(f"2. [FILE] Write engine:    {skill_path}/lg_control.py")
-        print(f"3. [FILE] Write config:    {skill_path}/.env (Device ID isolation)")
-        print(f"4. [FILE] Copy tools:      lg_api_tool.py, requirements.txt")
-        print(f"5. [FILE] Copy references: public_api_constants.json, profile.json")
-        print(f"6. [ENV]  Setup venv:      Create venv and install dependencies")
-        print(f"7. [NET]  Verification:    Call LG API to verify device status")
+        print(f"3. [FILE] Write SKILL:     {skill_path}/SKILL.md")
+        print(f"4. [FILE] Write config:    {skill_path}/.env (Device ID isolation)")
+        print(f"5. [FILE] Copy tools:      lg_api_tool.py, requirements.txt")
+        print(f"6. [FILE] Copy references: public_api_constants.json, profile.json, .api_server_cache")
+        print(f"7. [ENV]  Setup venv:      Create venv and install dependencies")
+        print(f"8. [NET]  Verification:    Call LG API to verify device status")
         print("\n[ACTION REQUIRED]")
         print("Please review these actions. If you approve, run this command again with the '--confirm' flag.")
         print("!"*60 + "\n")
@@ -127,7 +230,8 @@ def main():
     
     lg_control_code = run_command(
         f"python3 \"{generator_path}\" \"{profile_path}\"", 
-        capture=True
+        capture=True,
+        env=gen_env
     )
     
     # Write the generated code
@@ -158,11 +262,26 @@ def main():
     req_src = os.path.join(PROJECT_ROOT, "requirements.txt")
     if os.path.exists(req_src):
         shutil.copy(req_src, skill_path)
+    if os.path.exists(CACHE_FILE):
+        shutil.copy(CACHE_FILE, os.path.join(skill_path, ".api_server_cache"))
 
     # Create Local .env
     with open(os.path.join(skill_path, ".env"), "w") as f:
         f.write(f"LG_DEVICE_ID={args.id}\n")
     log("Created local .env (Credential Isolation).")
+
+    with open(profile_path, "r") as profile_file:
+        profile_data = json.load(profile_file)
+    skill_md = build_skill_markdown(
+        skill_name=skill_name,
+        device_name=target_device.get("name", "LG Device"),
+        device_type=device_type,
+        skill_path=skill_path,
+        properties=profile_data.get("response", {}).get("property", {}),
+    )
+    with open(os.path.join(skill_path, "SKILL.md"), "w") as f:
+        f.write(skill_md)
+    log("Generated SKILL.md.")
 
     # 6. Environment Setup (Platform Specific)
     is_windows = platform.system() == "Windows"
@@ -180,7 +299,7 @@ def main():
     log("Verifying skill functionality (Proof of Life)...")
     status_cmd = "python lg_control.py status" if is_windows else "./venv/bin/python lg_control.py status"
     try:
-        status_output = run_command(status_cmd, cwd=skill_path, capture=True)
+        status_output = run_command(status_cmd, cwd=skill_path, capture=True, exit_on_error=False)
         log(f"Status Check: SUCCESS\n{status_output}")
     except Exception as e:
         log("Status Check Failed. The skill was created but may need configuration.", "WARN")
@@ -193,7 +312,7 @@ def main():
     print(f"SKILL_NAME: {skill_name}")
     print(f"SKILL_PATH: {skill_path}")
     print(f"DEVICE_NAME: {target_device.get('name')}")
-    print(f"DEVICE_MODEL: {target_device.get('type')}")
+    print(f"DEVICE_MODEL: {target_device.get('model')}")
     
     print("\n[AVAILABLE COMMANDS]")
     help_cmd = "python lg_control.py --help" if is_windows else "./venv/bin/python lg_control.py --help"
@@ -210,7 +329,7 @@ def main():
     print(f"The workspace is fully assembled at: {skill_path}")
     print("1. Analyze the COMMANDS and ENGINE CODE above.")
     print("2. Read the local 'profile.json' to identify temperature ranges and allowed values.")
-    print("3. Generate a professional 'SKILL.md' in that directory using 'references/device-skill-template.md' as a guide.")
+    print("3. Review the generated 'SKILL.md' and adjust wording if you want more natural trigger phrases.")
     print("4. IMPORTANT: Save the new skill's usage details, commands, and trigger phrase to your global 'MEMORY.md'.")
     print("="*60)
 
