@@ -91,6 +91,7 @@ After the setup is complete, you will have specific skills like `lg-ac-livingroo
 
 ## 🔒 Security Mandates
 *   **Zero-Leak**: We never store your `LG_PAT` in generated device skills. They only use a `LG_DEVICE_ID`.
+*   **Shell Credentials for Device Skills**: Generated device skills expect `LG_PAT` and `LG_COUNTRY` to be available in the shell when they run.
 *   **Local-First**: All API communication happens directly from your machine to LG's servers.
 *   **Validation**: Every command uses optimistic locking (`x-conditional-control`) to ensure your device state is always what you expect.
 
